@@ -39,7 +39,7 @@ const Header = () => {
             </div>
             <div>
                 <h2 className='text-orange-500 font-[800]'>
-                    NADAR SARASWATHI COLLEGE OF ENGINEERING & TECHNOLOGY 
+                    EASA COLLEGE OF ENGINEERING & TECHNOLOGY 
                 </h2>
             </div>
            <div>
