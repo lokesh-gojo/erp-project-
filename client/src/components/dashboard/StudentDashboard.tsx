@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Leaderboard } from "../leaderboard/leaderboard";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // StudentTest interface matching API response
 interface StudentTest {
   test_id: number;
@@ -31,6 +31,7 @@ interface StudentTest {
   time_slot?: string;
   topic_title?: string;
   sub_topic_title?: string;
+  score?: number;
 }
 
 // Dynamic stats will be calculated from tests array
@@ -72,12 +73,12 @@ const formatDuration = (timeLimit: number) => {
   return `${timeLimit}m`;
 };
 
-const studentTestsSection = ({ tests, navigate }: { tests: StudentTest[]; navigate: (path: string) => void }) => (
+const studentTestsSection = ({ tests, navigate, isMissedView = false }: { tests: StudentTest[]; navigate: (path: string) => void; isMissedView?: boolean }) => (
   <div className="space-y-4">
     {tests.length === 0 ? (
       <div className="text-center py-8 text-muted-foreground">
         <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No tests available for your year and department.</p>
+        <p>No tests available in this section.</p>
       </div>
     ) : (
       tests.map((test, idx) => {
@@ -89,6 +90,8 @@ const studentTestsSection = ({ tests, navigate }: { tests: StudentTest[]; naviga
                 <h3 className="font-medium text-foreground">{test.title}</h3>
                 {isCompleted ? (
                   <Badge variant="outline" className="bg-success text-success-foreground">Completed</Badge>
+                ) : isMissedView ? (
+                  <Badge variant="destructive">Missed</Badge>
                 ) : (
                   <Badge
                     variant={test.is_active === 1 ? 'default' : 'secondary'}
@@ -124,14 +127,20 @@ const studentTestsSection = ({ tests, navigate }: { tests: StudentTest[]; naviga
                     Created: {new Date(test.created_at).toLocaleDateString()}
                   </span>
                 )}
+                {isCompleted && test.score !== undefined && test.score !== null && (
+                  <span className="flex items-center gap-1 text-success font-medium">
+                    <Trophy className="h-4 w-4" />
+                    Score: {test.score}%
+                  </span>
+                )}
               </div>
             </div>
             <Button
-              variant={isCompleted ? 'outline' : (test.is_active === 1 ? 'default' : 'outline')}
-              disabled={isCompleted || test.is_active !== 1}
-              onClick={() => !isCompleted && test.is_active === 1 && navigate(`/quiz/${test.test_id}`)}
+              variant={isCompleted ? 'outline' : (isMissedView ? 'secondary' : (test.is_active === 1 ? 'default' : 'outline'))}
+              disabled={isCompleted || isMissedView || test.is_active !== 1}
+              onClick={() => !isCompleted && !isMissedView && test.is_active === 1 && navigate(`/quiz/${test.test_id}`)}
             >
-              {isCompleted ? 'Completed' : (test.is_active === 1 ? 'Start Test' : 'Not Available')}
+              {isCompleted ? 'Completed' : (isMissedView ? 'Missed' : (test.is_active === 1 ? 'Start Test' : 'Not Available'))}
             </Button>
           </div>
         );
@@ -193,6 +202,39 @@ const StudentDashboard = () => {
     totalStudents: 0,
     averageScore: 0
   });
+
+  // Categorize tests into available, completed, missed
+  const categorizeTests = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const available: StudentTest[] = [];
+    const completed: StudentTest[] = [];
+    const missed: StudentTest[] = [];
+
+    tests.forEach((test: StudentTest) => {
+      const isCompleted = test.status === 'completed';
+      if (isCompleted) {
+        completed.push(test);
+      } else {
+        if (test.date) {
+          const testDate = new Date(test.date);
+          testDate.setHours(0, 0, 0, 0);
+          if (testDate < now) {
+            missed.push(test);
+          } else {
+            available.push(test);
+          }
+        } else {
+          available.push(test);
+        }
+      }
+    });
+
+    return { available, completed, missed };
+  };
+
+  const categorizedTests = categorizeTests();
 
   // Calculate dynamic stats from tests
   const calculateStats = () => {
@@ -512,13 +554,28 @@ const StudentDashboard = () => {
             {/* Recent Quizzes */}
             <Card>
               <CardHeader>
-                <CardTitle>Available Quizzes</CardTitle>
+                <CardTitle>Quizzes</CardTitle>
                 <CardDescription>
                   Complete your assigned quizzes before the due date
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {studentTestsSection({ tests: tests as StudentTest[], navigate })}
+                <Tabs defaultValue="available" className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="available">Available</TabsTrigger>
+                    <TabsTrigger value="completed">Completed</TabsTrigger>
+                    <TabsTrigger value="missed">Missed</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="available">
+                    {studentTestsSection({ tests: categorizedTests.available, navigate })}
+                  </TabsContent>
+                  <TabsContent value="completed">
+                    {studentTestsSection({ tests: categorizedTests.completed, navigate })}
+                  </TabsContent>
+                  <TabsContent value="missed">
+                    {studentTestsSection({ tests: categorizedTests.missed, navigate, isMissedView: true })}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </>
@@ -532,7 +589,22 @@ const StudentDashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {studentTestsSection({ tests: tests as StudentTest[], navigate })}
+                <Tabs defaultValue="available" className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="available">Available</TabsTrigger>
+                    <TabsTrigger value="completed">Completed</TabsTrigger>
+                    <TabsTrigger value="missed">Missed</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="available">
+                    {studentTestsSection({ tests: categorizedTests.available, navigate })}
+                  </TabsContent>
+                  <TabsContent value="completed">
+                    {studentTestsSection({ tests: categorizedTests.completed, navigate })}
+                  </TabsContent>
+                  <TabsContent value="missed">
+                    {studentTestsSection({ tests: categorizedTests.missed, navigate, isMissedView: true })}
+                  </TabsContent>
+                </Tabs>
             </CardContent>
           </Card>
         )}

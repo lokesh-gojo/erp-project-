@@ -82,19 +82,19 @@ exports.getTestsForStudent = (req, res) => {
     LEFT JOIN departments d ON t.department_id = d.id
     LEFT JOIN users u ON t.added_by = u.id
     LEFT JOIN (
-      /* Get only the latest session for each student/test combination */
-      SELECT st1.test_id, st1.student_id, st1.status, st1.score, st1.start_time, st1.end_time
+      /* Get only the latest session for the specific student */
+      SELECT st1.test_id, st1.status, st1.score, st1.start_time, st1.end_time
       FROM student_tests st1
       INNER JOIN (
-        SELECT test_id, student_id, MAX(student_test_id) as latest_id
+        SELECT MAX(student_test_id) as latest_id
         FROM student_tests
-        GROUP BY test_id, student_id
+        WHERE student_id = ?
+        GROUP BY test_id
       ) st2 ON st1.student_test_id = st2.latest_id
-    ) stest ON t.test_id = stest.test_id AND stest.student_id = ?
+    ) stest ON t.test_id = stest.test_id
     INNER JOIN users student ON student.id = ?
     WHERE (t.department_id IS NULL OR t.department_id = student.department_id)
       AND (t.year IS NULL OR t.year = student.year)
-      AND (t.date IS NULL OR t.date >= CURDATE())
     ORDER BY 
       t.is_active DESC,
       CASE 
