@@ -19,14 +19,19 @@ exports.getFacultyLeaderboard = (req, res) => {
     const departmentId = deptResults[0].department_id;
     const sql = `
       SELECT u.id, u.name, u.roll_no, d.short_name AS department, u.year,
-             l.average_score,
-             (l.total_time_seconds / l.total_tests) as avg_time_seconds,
-             l.rank_position as rank
-      FROM leaderboard l
-      INNER JOIN users u ON l.student_id = u.id
-      LEFT JOIN departments d ON u.department_id = d.id
+             COALESCE(ROUND(AVG(st.score), 2), 0) AS average_score,
+             COALESCE(AVG(LEAST(t.duration_minutes * 60, TIMESTAMPDIFF(SECOND, st.start_time, st.end_time))), 0) as avg_time_seconds,
+             RANK() OVER (ORDER BY COALESCE(ROUND(AVG(st.score), 2), 0) DESC, COALESCE(AVG(LEAST(t.duration_minutes * 60, TIMESTAMPDIFF(SECOND, st.start_time, st.end_time))), 999999) ASC) as rank
+      FROM users u
+      LEFT JOIN student_tests st ON u.id = st.student_id AND st.status = 'completed' AND st.end_time IS NOT NULL
+      LEFT JOIN tests t ON st.test_id = t.test_id
+      LEFT JOIN (
+        SELECT id, MAX(full_name) as full_name, MAX(short_name) as short_name 
+        FROM departments GROUP BY id
+      ) d ON u.department_id = d.id
       WHERE u.role_id = 1 AND u.department_id = ?
-      ORDER BY l.rank_position ASC
+      GROUP BY u.id, u.name, u.roll_no, d.short_name, u.year
+      ORDER BY rank ASC
       LIMIT 10
     `;
     db.query(sql, [departmentId], (err, results) => {
@@ -65,60 +70,49 @@ exports.getLeaderboard = (req, res) => {
 
   let sql, params;
 
-  if (test_id) {
-    // Test-wise leaderboard: Best attempt per student (Ranked by score then time)
-    sql = `
-      SELECT u.id, u.name, u.roll_no, d.short_name AS department, u.year,
-             at.raw_score,
-             at.total_questions,
-             at.time_taken_seconds
-      FROM (
-        SELECT st.student_id,
-               (SELECT COUNT(DISTINCT sa.question_id) 
-                FROM student_answers sa 
-                INNER JOIN test_questions tq ON sa.question_id = tq.question_id
-                WHERE sa.student_test_id = st.student_test_id 
-                AND tq.test_id = st.test_id
-                AND sa.is_correct = 1) as raw_score,
-               (SELECT COUNT(*) FROM test_questions WHERE test_id = st.test_id) as total_questions,
-               GREATEST(1, LEAST(t.duration_minutes * 60, 
-                 CASE 
-                   WHEN st.end_time IS NOT NULL THEN TIMESTAMPDIFF(SECOND, st.start_time, st.end_time)
-                   ELSE TIMESTAMPDIFF(SECOND, st.start_time, NOW())
-                 END
-               )) as time_taken_seconds,
-               ROW_NUMBER() OVER (
-                 PARTITION BY st.student_id 
-                 ORDER BY 
-                   (SELECT COUNT(DISTINCT sa2.question_id) FROM student_answers sa2 WHERE sa2.student_test_id = st.student_test_id AND sa2.is_correct = 1) DESC,
-                   GREATEST(1, TIMESTAMPDIFF(SECOND, st.start_time, IFNULL(st.end_time, NOW()))) ASC
-               ) as rn
-        FROM student_tests st
-        INNER JOIN tests t ON st.test_id = t.test_id
-        WHERE st.test_id = ?
-      ) at
-      INNER JOIN users u ON at.student_id = u.id
-      LEFT JOIN departments d ON u.department_id = d.id
-      WHERE at.rn = 1 AND u.role_id = 1
-      ORDER BY at.raw_score DESC, at.time_taken_seconds ASC
-    `;
-    params = [test_id];
-  } else {
-    // Overall leaderboard
-    // Overall leaderboard: Read from the persisted leaderboard table
-    sql = `
-      SELECT u.id, u.name, u.roll_no, d.short_name AS department, u.year,
-             l.average_score,
-             (l.total_time_seconds / l.total_tests) as avg_time_seconds,
-             l.rank_position as rank
-      FROM leaderboard l
-      INNER JOIN users u ON l.student_id = u.id
-      LEFT JOIN departments d ON u.department_id = d.id
-      WHERE u.role_id = 1
-      ORDER BY l.rank_position ASC
-    `;
-    params = [];
-  }
+    if (test_id) {
+      // Test-wise leaderboard: All eligible students (including misses)
+      sql = `
+        SELECT u.id, u.name, u.roll_no, d.short_name AS department, u.year,
+               COALESCE(st.score, 0) as average_score,
+               ROUND((COALESCE(st.score, 0) / 100) * t.num_questions) as raw_score,
+               t.num_questions as total_questions,
+               GREATEST(1, LEAST(t.duration_minutes * 60, COALESCE(TIMESTAMPDIFF(SECOND, st.start_time, st.end_time), 999999))) as time_taken_seconds,
+               RANK() OVER (ORDER BY COALESCE(st.score, 0) DESC, GREATEST(1, LEAST(t.duration_minutes * 60, COALESCE(TIMESTAMPDIFF(SECOND, st.start_time, st.end_time), 999999))) ASC) as rank_position,
+               CASE WHEN st.status = 'completed' THEN 'Completed' ELSE 'Missed' END as test_status
+        FROM users u
+        INNER JOIN tests t ON t.test_id = ?
+        LEFT JOIN student_tests st ON u.id = st.student_id AND st.test_id = t.test_id AND st.status = 'completed'
+        LEFT JOIN (
+          SELECT id, MAX(full_name) as full_name, MAX(short_name) as short_name 
+          FROM departments GROUP BY id
+        ) d ON u.department_id = d.id
+        WHERE u.role_id = 1 
+          AND (t.department_id IS NULL OR t.department_id = u.department_id)
+          AND (t.year IS NULL OR t.year = u.year)
+        ORDER BY rank_position ASC
+      `;
+      params = [test_id];
+    } else {
+      // Overall leaderboard: Dynamic calculation
+      sql = `
+        SELECT u.id, u.name, u.roll_no, d.short_name AS department, u.year,
+               COALESCE(ROUND(AVG(st.score), 2), 0) AS average_score,
+               COALESCE(AVG(LEAST(t.duration_minutes * 60, TIMESTAMPDIFF(SECOND, st.start_time, st.end_time))), 0) as avg_time_seconds,
+               RANK() OVER (ORDER BY COALESCE(ROUND(AVG(st.score), 2), 0) DESC, COALESCE(AVG(LEAST(t.duration_minutes * 60, TIMESTAMPDIFF(SECOND, st.start_time, st.end_time))), 999999) ASC) as rank_position
+        FROM users u
+        LEFT JOIN student_tests st ON u.id = st.student_id AND st.status = 'completed' AND st.end_time IS NOT NULL
+        LEFT JOIN tests t ON st.test_id = t.test_id
+        LEFT JOIN (
+          SELECT id, MAX(full_name) as full_name, MAX(short_name) as short_name 
+          FROM departments GROUP BY id
+        ) d ON u.department_id = d.id
+        WHERE u.role_id = 1
+        GROUP BY u.id, u.name, u.roll_no, d.short_name, u.year
+        ORDER BY rank_position ASC
+      `;
+      params = [];
+    }
 
   db.query(sql, params, (err, results) => {
     if (err) {
@@ -147,7 +141,8 @@ exports.getLeaderboard = (req, res) => {
         department: row.department || '',
         year: row.year ? `${row.year} Year` : '',
         time_taken: formattedTime,
-        avatar: (row.name && row.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)) || 'ST'
+        avatar: (row.name && row.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)) || 'ST',
+        status: row.test_status || 'Completed'
       };
     });
     res.json({ success: true, leaderboard });
@@ -159,6 +154,7 @@ exports.getLeaderboard = (req, res) => {
 exports.getLeaderboardTests = (req, res) => {
   const userId = req.user?.id;
   const roleId = req.user?.role_id; // Using role_id from token
+  const { date } = req.query;
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -166,32 +162,37 @@ exports.getLeaderboardTests = (req, res) => {
 
   let sql, params;
 
-  if (roleId == 1) { // Student
-    // Get tests the student has attended and completed
+  if (roleId == 1 || !roleId) { // Student (or fallback)
+    // Get ALL active tests available to the student's department and year
     sql = `
-      SELECT DISTINCT t.test_id as id, t.title, t.date
+      SELECT t.test_id as id, t.title, t.date
       FROM tests t
-      INNER JOIN student_tests st ON t.test_id = st.test_id
-      WHERE st.student_id = ? AND st.status = 'completed' AND st.end_time IS NOT NULL
+      INNER JOIN users u ON u.id = ?
+      WHERE (t.department_id IS NULL OR t.department_id = u.department_id)
+        AND (t.year IS NULL OR t.year = u.year)
+        AND t.is_active = 1
+        ${date ? 'AND DATE(t.date) = ?' : ''}
       ORDER BY t.date DESC, t.created_at DESC
     `;
-    params = [userId];
+    params = date ? [userId, date] : [userId];
   } else if (roleId == 2) { // Faculty
     // Get tests the faculty has created
     sql = `
       SELECT test_id as id, title, date
       FROM tests
       WHERE added_by = ?
+        ${date ? 'AND DATE(date) = ?' : ''}
       ORDER BY date DESC, created_at DESC
     `;
-    params = [userId];
+    params = date ? [userId, date] : [userId];
   } else { // Admin or others
     sql = `
       SELECT test_id as id, title, date
       FROM tests
+      ${date ? 'WHERE DATE(date) = ?' : ''}
       ORDER BY date DESC, created_at DESC
     `;
-    params = [];
+    params = date ? [date] : [];
   }
 
   db.query(sql, params, (err, results) => {

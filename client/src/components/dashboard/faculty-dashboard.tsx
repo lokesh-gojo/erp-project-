@@ -6,7 +6,7 @@ import { BookOpen, Users, BarChart3, Plus, Edit, Eye, FileText } from "lucide-re
 import Header from "./faculty/Header";
 import { TopicsSection } from "./faculty/Topic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 import { Leaderboard } from "../leaderboard/leaderboard";
@@ -176,6 +176,7 @@ export const FacultyDashboard = () => {
   const [availableQuestions, setAvailableQuestions] = useState([]);
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Filter states
@@ -1135,8 +1136,10 @@ export const FacultyDashboard = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (!validateForm()) return;
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       // Prepare data for API
@@ -1204,6 +1207,7 @@ export const FacultyDashboard = () => {
     } catch (error: any) {
       alert(error.message || "Error saving test. Please try again.");
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };

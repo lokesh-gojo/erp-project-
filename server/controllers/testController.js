@@ -19,7 +19,10 @@ exports.getTestsByUser = (req, res) => {
     FROM tests t
     LEFT JOIN topics tp ON t.topic_id = tp.topic_id
     LEFT JOIN sub_topics st ON t.sub_topic_id = st.sub_topic_id
-    LEFT JOIN departments d ON t.department_id = d.id
+    LEFT JOIN (
+      SELECT id, MAX(full_name) as full_name, MAX(short_name) as short_name 
+      FROM departments GROUP BY id
+    ) d ON t.department_id = d.id
     WHERE t.added_by = ?
     ORDER BY t.created_at DESC
   `;
@@ -79,7 +82,10 @@ exports.getTestsForStudent = (req, res) => {
     FROM tests t
     LEFT JOIN topics tp ON t.topic_id = tp.topic_id
     LEFT JOIN sub_topics st ON t.sub_topic_id = st.sub_topic_id
-    LEFT JOIN departments d ON t.department_id = d.id
+    LEFT JOIN (
+      SELECT id, MAX(full_name) as full_name, MAX(short_name) as short_name 
+      FROM departments GROUP BY id
+    ) d ON t.department_id = d.id
     LEFT JOIN users u ON t.added_by = u.id
     LEFT JOIN (
       /* Get only the latest session for the specific student */

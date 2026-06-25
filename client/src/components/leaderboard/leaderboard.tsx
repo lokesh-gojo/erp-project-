@@ -36,15 +36,19 @@ export const Leaderboard = ({ autoFetch = true }: { autoFetch?: boolean } = {}) 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [tests, setTests] = useState<any[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [testsLoading, setTestsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchTests = async () => {
+  const fetchTests = async (dateFilter = "") => {
     setTestsLoading(true);
     try {
       const token = localStorage.getItem('jwt_token');
-      const response = await fetch(`${API_BASE}/leaderboard/tests`, {
+      const url = dateFilter 
+        ? `${API_BASE}/leaderboard/tests?date=${dateFilter}`
+        : `${API_BASE}/leaderboard/tests`;
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -96,8 +100,8 @@ export const Leaderboard = ({ autoFetch = true }: { autoFetch?: boolean } = {}) 
   };
 
   useEffect(() => {
-    fetchTests();
-  }, []);
+    fetchTests(selectedDate);
+  }, [selectedDate]);
 
   useEffect(() => {
     if (selectedTestId) {
@@ -130,8 +134,10 @@ export const Leaderboard = ({ autoFetch = true }: { autoFetch?: boolean } = {}) 
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-2">
-              <select
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-muted-foreground mb-1 block">Test Name</label>
+                <select
                 id="test-select"
                 value={selectedTestId}
                 onChange={(e) => setSelectedTestId(e.target.value)}
@@ -154,6 +160,16 @@ export const Leaderboard = ({ autoFetch = true }: { autoFetch?: boolean } = {}) 
                 )}
               </select>
             </div>
+            <div className="w-full md:w-1/3">
+              <label className="text-sm font-medium text-muted-foreground mb-1 block">Filter by Date</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full p-3 border border-input rounded-md bg-background focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none"
+              />
+            </div>
+          </div>
           </CardContent>
         </Card>
 
@@ -221,10 +237,13 @@ export const Leaderboard = ({ autoFetch = true }: { autoFetch?: boolean } = {}) 
                           <span className="font-medium">{student.time_taken}</span>
                         </div>
                       )}
-                      <div className="mt-4">
+                      <div className="mt-4 flex flex-col gap-2 items-center">
                         <Badge variant="outline" className="bg-background">
                           {student.department} {student.year && `- ${student.year}`}
                         </Badge>
+                        {student.status === 'Missed' && (
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Missed</Badge>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -270,7 +289,12 @@ export const Leaderboard = ({ autoFetch = true }: { autoFetch?: boolean } = {}) 
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <h4 className="font-bold text-foreground leading-tight">{student.name}</h4>
+                          <h4 className="font-bold text-foreground leading-tight flex items-center gap-2">
+                            {student.name}
+                            {student.status === 'Missed' && (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Missed</Badge>
+                            )}
+                          </h4>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground uppercase">
                               {student.department}

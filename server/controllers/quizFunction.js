@@ -387,8 +387,8 @@ function calculateAndSaveScore(student_test_id, userId, res) {
           return res.status(500).json({ error: 'Failed to save results' });
         }
 
-        // --- Sync to leaderboard table ---
-        if (userId) syncLeaderboard(userId);
+        // --- Sync to leaderboard table (DEPRECATED) ---
+        // if (userId) syncLeaderboard(userId);
 
         res.json({
           success: true,
@@ -405,55 +405,4 @@ function calculateAndSaveScore(student_test_id, userId, res) {
   });
 }
 
-// Helper to sync summary stats to the leaderboard table
-const syncLeaderboard = (studentId) => {
-  const statsQuery = `
-    SELECT 
-      COUNT(*) as total_tests,
-      SUM(score) as total_score,
-      AVG(score) as average_score,
-      MAX(score) as highest_score,
-      SUM(GREATEST(0, LEAST(t.duration_minutes * 60, TIMESTAMPDIFF(SECOND, st.start_time, st.end_time)))) as total_time_seconds
-    FROM student_tests st
-    INNER JOIN tests t ON st.test_id = t.test_id
-    WHERE st.student_id = ? AND st.status = 'completed'
-  `;
-
-  db.query(statsQuery, [studentId], (err, results) => {
-    if (err || !results.length) return console.error('Leaderboard sync error:', err);
-
-    const { total_tests, total_score, average_score, highest_score, total_time_seconds } = results[0];
-
-    const upsertSql = `
-      INSERT INTO leaderboard (student_id, total_tests, total_score, average_score, highest_score, total_time_seconds, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, NOW())
-      ON DUPLICATE KEY UPDATE
-      total_tests = VALUES(total_tests),
-      total_score = VALUES(total_score),
-      average_score = VALUES(average_score),
-      highest_score = VALUES(highest_score),
-      total_time_seconds = VALUES(total_time_seconds),
-      updated_at = NOW()
-    `;
-
-    db.query(upsertSql, [studentId, total_tests, total_score, average_score, highest_score, total_time_seconds], (err) => {
-      if (err) console.error('Leaderboard upsert error:', err);
-      else {
-        // Update rank positions for everyone based on average score and time efficiency
-        const updateRanksSql = `
-          UPDATE leaderboard l
-          JOIN (
-            SELECT student_id, 
-                   ROW_NUMBER() OVER (ORDER BY average_score DESC, (total_time_seconds / total_tests) ASC) as new_rank
-            FROM leaderboard
-            WHERE total_tests > 0
-          ) r ON l.student_id = r.student_id
-          SET l.rank_position = r.new_rank
-        `;
-        db.query(updateRanksSql, (err) => {
-          if (err) console.error('Rank update error:', err);
-        });
-      }
-    });
-  });
-};
+// syncLeaderboard function deprecated and removed.
