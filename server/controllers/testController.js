@@ -3,12 +3,13 @@ const db = require('../config/conn');
 // Get all tests created by the authenticated user
 exports.getTestsByUser = (req, res) => {
   const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
   }
 
-  const sql = `
+  let sql = `
     SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
            t.num_questions, t.department_id, t.year, t.date, t.time_slot, t.duration_minutes, 
            t.created_at, t.is_active,
@@ -23,11 +24,17 @@ exports.getTestsByUser = (req, res) => {
       SELECT id, MAX(full_name) as full_name, MAX(short_name) as short_name 
       FROM departments GROUP BY id
     ) d ON t.department_id = d.id
-    WHERE t.added_by = ?
-    ORDER BY t.created_at DESC
   `;
 
-  db.query(sql, [userId], (err, results) => {
+  const queryParams = [];
+  if (roleId !== 4 && roleId !== 5) {
+    sql += ' WHERE t.added_by = ?';
+    queryParams.push(userId);
+  }
+
+  sql += ' ORDER BY t.created_at DESC';
+
+  db.query(sql, queryParams, (err, results) => {
     if (err) {
       return res.status(500).json({ error: 'Database error', details: err });
     }
@@ -149,6 +156,7 @@ exports.getTestsForStudent = (req, res) => {
 exports.getTestById = (req, res) => {
   const { test_id } = req.params;
   const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
@@ -158,7 +166,7 @@ exports.getTestById = (req, res) => {
     return res.status(400).json({ error: 'Test ID required' });
   }
 
-  const sql = `
+  let sql = `
     SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
            t.num_questions, t.department_id, t.year, t.date, t.time_slot, t.duration_minutes, 
            t.created_at, t.is_active,
@@ -167,10 +175,16 @@ exports.getTestById = (req, res) => {
     FROM tests t
     LEFT JOIN topics tp ON t.topic_id = tp.topic_id
     LEFT JOIN sub_topics st ON t.sub_topic_id = st.sub_topic_id
-    WHERE t.test_id = ? AND t.added_by = ?
+    WHERE t.test_id = ?
   `;
 
-  db.query(sql, [test_id, userId], (err, results) => {
+  const queryParams = [test_id];
+  if (roleId !== 4 && roleId !== 5) {
+    sql += ' AND t.added_by = ?';
+    queryParams.push(userId);
+  }
+
+  db.query(sql, queryParams, (err, results) => {
     if (err) {
       return res.status(500).json({ error: 'Database error', details: err });
     }
@@ -214,7 +228,8 @@ exports.createTest = (req, res) => {
 
   const {
     title, description, subject, topic_id, sub_topic_id, num_questions,
-    department_id, year, date, time_slot, duration_minutes, is_active, total_marks
+    department_id, year, date, time_slot, duration_minutes, is_active, total_marks,
+    questions, faculty_id
   } = req.body;
 
   if (!title || !subject || !num_questions || !duration_minutes) {
@@ -224,6 +239,7 @@ exports.createTest = (req, res) => {
   }
 
   const marks = total_marks || num_questions; // Default to 1 mark per question if not specified
+  const targetAddedBy = ((Number(req.user?.role_id) === 4 || Number(req.user?.role_id) === 5) && faculty_id) ? faculty_id : userId;
 
   const sql = `
     INSERT INTO tests (title, description, subject, added_by, topic_id, sub_topic_id, 
@@ -232,7 +248,7 @@ exports.createTest = (req, res) => {
   `;
 
   const values = [
-    title, description, subject, userId, topic_id || null, sub_topic_id || null,
+    title, description, subject, targetAddedBy, topic_id || null, sub_topic_id || null,
     num_questions, department_id || null, year || null, date || null, time_slot || null, duration_minutes,
     is_active !== undefined ? is_active : 1, marks
   ];
@@ -243,11 +259,29 @@ exports.createTest = (req, res) => {
       return res.status(500).json({ error: 'Database error', details: err.message || err });
     }
 
-    res.json({
-      success: true,
-      message: 'Test created successfully',
-      test_id: result.insertId
-    });
+    const testId = result.insertId;
+    const questionIds = (questions || []).map(q => typeof q === 'object' ? (q.question_id || q.id) : q).filter(Boolean);
+
+    if (questionIds.length > 0) {
+      const insertQuery = 'INSERT INTO test_questions (test_id, question_id) VALUES ?';
+      const testQuestionRows = questionIds.map(qId => [testId, qId]);
+      db.query(insertQuery, [testQuestionRows], (insertErr) => {
+        if (insertErr) {
+          console.error('Error inserting test questions:', insertErr);
+        }
+        res.json({
+          success: true,
+          message: 'Test created and questions assigned successfully',
+          test_id: testId
+        });
+      });
+    } else {
+      res.json({
+        success: true,
+        message: 'Test created successfully',
+        test_id: testId
+      });
+    }
   });
 };
 
@@ -255,6 +289,7 @@ exports.createTest = (req, res) => {
 exports.updateTest = (req, res) => {
   const { test_id } = req.params;
   const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
@@ -270,9 +305,14 @@ exports.updateTest = (req, res) => {
   } = req.body;
 
   // First, verify the test exists and belongs to the user
-  const checkSql = 'SELECT test_id FROM tests WHERE test_id = ? AND added_by = ?';
+  let checkSql = 'SELECT test_id FROM tests WHERE test_id = ?';
+  const checkParams = [test_id];
+  if (roleId !== 4 && roleId !== 5) {
+    checkSql += ' AND added_by = ?';
+    checkParams.push(userId);
+  }
 
-  db.query(checkSql, [test_id, userId], (err, checkResults) => {
+  db.query(checkSql, checkParams, (err, checkResults) => {
     if (err) {
       return res.status(500).json({ error: 'Database error', details: err });
     }
@@ -349,13 +389,18 @@ exports.updateTest = (req, res) => {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    updateValues.push(test_id, userId);
+    updateValues.push(test_id);
 
-    const updateSql = `
+    let updateSql = `
       UPDATE tests 
       SET ${updateFields.join(', ')} 
-      WHERE test_id = ? AND added_by = ?
+      WHERE test_id = ?
     `;
+
+    if (roleId !== 4 && roleId !== 5) {
+      updateSql += ' AND added_by = ?';
+      updateValues.push(userId);
+    }
 
     db.query(updateSql, updateValues, (err, result) => {
       if (err) {
@@ -378,6 +423,7 @@ exports.updateTest = (req, res) => {
 exports.deleteTest = (req, res) => {
   const { test_id } = req.params;
   const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
@@ -387,9 +433,14 @@ exports.deleteTest = (req, res) => {
     return res.status(400).json({ error: 'Test ID required' });
   }
 
-  const sql = 'DELETE FROM tests WHERE test_id = ? AND added_by = ?';
+  let sql = 'DELETE FROM tests WHERE test_id = ?';
+  const queryParams = [test_id];
+  if (roleId !== 4 && roleId !== 5) {
+    sql += ' AND added_by = ?';
+    queryParams.push(userId);
+  }
 
-  db.query(sql, [test_id, userId], (err, result) => {
+  db.query(sql, queryParams, (err, result) => {
     if (err) {
       return res.status(500).json({ error: 'Database error', details: err });
     }
@@ -409,6 +460,7 @@ exports.deleteTest = (req, res) => {
 exports.toggleTestStatus = (req, res) => {
   const { test_id } = req.params;
   const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
@@ -418,13 +470,18 @@ exports.toggleTestStatus = (req, res) => {
     return res.status(400).json({ error: 'Test ID required' });
   }
 
-  const sql = `
+  let sql = `
     UPDATE tests 
     SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END 
-    WHERE test_id = ? AND added_by = ?
+    WHERE test_id = ?
   `;
+  const queryParams = [test_id];
+  if (roleId !== 4 && roleId !== 5) {
+    sql += ' AND added_by = ?';
+    queryParams.push(userId);
+  }
 
-  db.query(sql, [test_id, userId], (err, result) => {
+  db.query(sql, queryParams, (err, result) => {
     if (err) {
       return res.status(500).json({ error: 'Database error', details: err });
     }
