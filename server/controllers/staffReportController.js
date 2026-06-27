@@ -1,5 +1,10 @@
 const db = require('../config/conn');
 
+// Helper: check if the requesting user is a SuperAdmin (role_id 5)
+function isSuperAdmin(req) {
+  return Number(req.user?.role_id) === 5;
+}
+
 // 1. Individual Student Report
 exports.getStudentsByFaculty = (req, res) => {
   const facultyId = req.user?.id;
@@ -8,7 +13,20 @@ exports.getStudentsByFaculty = (req, res) => {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
   }
 
-  const sql = `
+  const superAdmin = isSuperAdmin(req);
+
+  const sql = superAdmin
+    ? `
+    SELECT DISTINCT u.id, u.name, u.email, u.roll_no as rollNo, 
+           d.short_name as department, u.year
+    FROM users u
+    INNER JOIN student_tests st ON u.id = st.student_id
+    INNER JOIN tests t ON st.test_id = t.test_id
+    LEFT JOIN departments d ON u.department_id = d.id
+    WHERE u.role_id = '1'
+    ORDER BY u.name
+    `
+    : `
     SELECT DISTINCT u.id, u.name, u.email, u.roll_no as rollNo, 
            d.short_name as department, u.year
     FROM users u
@@ -17,9 +35,11 @@ exports.getStudentsByFaculty = (req, res) => {
     LEFT JOIN departments d ON u.department_id = d.id
     WHERE t.added_by = ? AND u.role_id = '1'
     ORDER BY u.name
-  `;
+    `;
 
-  db.query(sql, [facultyId], (err, results) => {
+  const params = superAdmin ? [] : [facultyId];
+
+  db.query(sql, params, (err, results) => {
     if (err) {
       return res.status(500).json({ error: 'Database error', details: err });
     }
@@ -75,7 +95,7 @@ exports.getStudentReport = (req, res) => {
                 LEAST(t.duration_minutes * 60, TIMESTAMPDIFF(SECOND, st.start_time, st.end_time))
           )
         )
-      ) as rank,
+      ) as \`rank\`,
       (
         SELECT COUNT(*) 
         FROM student_tests st3 
@@ -189,7 +209,21 @@ exports.getTestsByFaculty = (req, res) => {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
   }
 
-  const sql = `
+  const superAdmin = isSuperAdmin(req);
+
+  const sql = superAdmin
+    ? `
+    SELECT t.test_id as id, t.title, t.date, t.duration_minutes as duration,
+           COUNT(st.student_id) as students,
+           t.num_questions as totalQuestions,
+           u.name as facultyName
+    FROM tests t
+    LEFT JOIN student_tests st ON t.test_id = st.test_id
+    JOIN users u ON t.added_by = u.id
+    GROUP BY t.test_id, t.title, t.date, t.duration_minutes, t.num_questions, u.name
+    ORDER BY t.date DESC
+    `
+    : `
     SELECT t.test_id as id, t.title, t.date, t.duration_minutes as duration,
            COUNT(st.student_id) as students,
            t.num_questions as totalQuestions
@@ -198,9 +232,11 @@ exports.getTestsByFaculty = (req, res) => {
     WHERE t.added_by = ?
     GROUP BY t.test_id, t.title, t.date, t.duration_minutes, t.num_questions
     ORDER BY t.date DESC
-  `;
+    `;
 
-  db.query(sql, [facultyId], (err, results) => {
+  const params = superAdmin ? [] : [facultyId];
+
+  db.query(sql, params, (err, results) => {
     if (err) {
       return res.status(500).json({ error: 'Database error', details: err });
     }
@@ -217,7 +253,9 @@ exports.getTestAnalysis = (req, res) => {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
   }
 
-  // Test info and stats
+  const superAdmin = isSuperAdmin(req);
+
+  // Test info and stats — SuperAdmin has no added_by restriction
   const testInfoSql = `
     SELECT t.title, t.date, t.num_questions as totalQuestions, t.duration_minutes as duration,
            u.name as facultyName,
@@ -234,7 +272,7 @@ exports.getTestAnalysis = (req, res) => {
       WHERE status = 'completed' AND end_time IS NOT NULL
       GROUP BY student_id, test_id
     ) bs ON t.test_id = bs.test_id
-    WHERE t.test_id = ? AND t.added_by = ?
+    WHERE t.test_id = ? ${superAdmin ? '' : 'AND t.added_by = ?'}
     GROUP BY t.test_id
   `;
 
@@ -258,7 +296,7 @@ exports.getTestAnalysis = (req, res) => {
                  AND TIMESTAMPDIFF(SECOND, st2.start_time, st2.end_time) < bs.min_duration_sec
                )
              )
-           ) as rank
+           ) as \`rank\`
     FROM (
       SELECT student_id, test_id, MAX(score) as max_score, 
              MIN(TIMESTAMPDIFF(SECOND, start_time, end_time)) as min_duration_sec,
@@ -271,7 +309,7 @@ exports.getTestAnalysis = (req, res) => {
     INNER JOIN tests t ON bs.test_id = t.test_id
     LEFT JOIN departments d ON u.department_id = d.id
     GROUP BY u.id, u.name, u.roll_no, d.short_name, u.year, bs.max_score, t.num_questions, bs.min_duration, bs.min_duration_sec
-    ORDER BY rank ASC, u.name ASC
+    ORDER BY \`rank\` ASC, u.name ASC
   `;
 
   // Absent Students (Eligible but haven't taken the test)
@@ -291,7 +329,7 @@ exports.getTestAnalysis = (req, res) => {
     ORDER BY u.name
   `;
 
-  // Question analysis
+  // Question analysis (SuperAdmin sees all, faculty scoped)
   const questionAnalysisSql = `
     SELECT q.question_text as question,
            COUNT(DISTINCT CASE WHEN sa.answer = q.correct_option THEN st.student_id END) as correctAnswers,
@@ -311,13 +349,14 @@ exports.getTestAnalysis = (req, res) => {
     LEFT JOIN student_tests st ON tq.test_id = st.test_id AND st.status = 'completed' AND st.end_time IS NOT NULL
     LEFT JOIN student_answers sa ON st.student_test_id = sa.student_test_id 
       AND tq.question_id = sa.question_id
-    WHERE tq.test_id = ? AND t.added_by = ?
+    WHERE tq.test_id = ? ${superAdmin ? '' : 'AND t.added_by = ?'}
     GROUP BY q.question_id, q.question_text, q.correct_option
     ORDER BY q.question_id
   `;
 
   // Execute all queries
-  db.query(testInfoSql, [testId, facultyId], (err, testInfo) => {
+  const testInfoParams = superAdmin ? [testId] : [testId, facultyId];
+  db.query(testInfoSql, testInfoParams, (err, testInfo) => {
     if (err) return res.status(500).json({ error: 'Database error (Info)', details: err });
     if (testInfo.length === 0) return res.status(404).json({ error: 'Test not found' });
 
@@ -327,7 +366,8 @@ exports.getTestAnalysis = (req, res) => {
       db.query(absentStudentsSql, [testId, testId], (err, absentStudents) => {
         if (err) return res.status(500).json({ error: 'Database error (Absent)', details: err });
 
-        db.query(questionAnalysisSql, [testId, facultyId], (err, questionAnalysis) => {
+        const qAnalysisParams = superAdmin ? [testId] : [testId, facultyId];
+        db.query(questionAnalysisSql, qAnalysisParams, (err, questionAnalysis) => {
           if (err) return res.status(500).json({ error: 'Database error (Questions)', details: err });
 
           res.json({
@@ -455,7 +495,7 @@ exports.getQuestionAnalysis = (req, res) => {
     FROM test_questions tq
     INNER JOIN questions q ON tq.question_id = q.question_id
     INNER JOIN tests t ON tq.test_id = t.test_id
-    WHERE tq.test_id = ? AND t.added_by = ?
+    WHERE tq.test_id = ? ${isSuperAdmin(req) ? '' : 'AND t.added_by = ?'}
     ORDER BY tq.test_question_id
   `;
 
@@ -475,7 +515,8 @@ exports.getQuestionAnalysis = (req, res) => {
     GROUP BY sa.question_id
   `;
 
-  db.query(questionsSql, [testId, facultyId], (err, questions) => {
+  const qSqlParams = isSuperAdmin(req) ? [testId] : [testId, facultyId];
+  db.query(questionsSql, qSqlParams, (err, questions) => {
     if (err) {
       console.error('Question analysis error (questions):', err);
       return res.status(500).json({ error: 'Database error', details: err });
