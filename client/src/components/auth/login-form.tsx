@@ -94,6 +94,7 @@ export const LoginForm = () => {
   };
 
   const { login: setAuthLogin } = useAuth();
+  const isSuperAdmin = userDetails?.role_name === 'principal';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,14 +166,14 @@ export const LoginForm = () => {
         </div>
 
         {/* Subtle background decorative element on the left */}
-        <div className="absolute top-0 left-0 w-72 h-72 bg-primary/10 rounded-full blur-[80px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className={`absolute top-0 left-0 w-72 h-72 ${isSuperAdmin ? 'bg-cyan-500/10' : 'bg-primary/10'} rounded-full blur-[80px] -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-all duration-500`} />
 
         {/* Center the form vertically taking up available space without overlapping */}
         <div className="w-full max-w-[420px] mx-auto relative z-10 my-auto py-8">
           <div className="mb-4 relative">
             <h1 className="text-3xl md:text-[2.2rem] font-extrabold text-gray-900 mb-3 tracking-tight leading-tight whitespace-nowrap">
               Welcome to{" "}
-              <span className="bg-gradient-to-r from-secondary via-secondary to-primary bg-clip-text text-transparent drop-shadow-sm">
+              <span className={`bg-gradient-to-r ${isSuperAdmin ? 'from-purple-600 via-purple-600 to-cyan-500' : 'from-secondary via-secondary to-primary'} bg-clip-text text-transparent drop-shadow-sm transition-all duration-500`}>
                 PREPTRACK!
               </span>
             </h1>
@@ -186,7 +187,7 @@ export const LoginForm = () => {
             <Button
               type="button"
               variant="ghost"
-              className={`rounded-full px-8 py-3 font-extrabold text-[15px] transition-all duration-300 ${activeTab === 'login' ? 'bg-white text-secondary shadow-[0_4px_15px_rgba(0,0,0,0.08)] hover:bg-white' : 'text-gray-500 hover:text-secondary hover:bg-gray-200/50'}`}
+              className={`rounded-full px-8 py-3 font-extrabold text-[15px] transition-all duration-300 ${activeTab === 'login' ? `bg-white ${isSuperAdmin ? 'text-cyan-600' : 'text-secondary'} shadow-[0_4px_15px_rgba(0,0,0,0.08)] hover:bg-white` : `text-gray-500 hover:${isSuperAdmin ? 'text-cyan-600' : 'text-secondary'} hover:bg-gray-200/50`}`}
               onClick={() => setActiveTab('login')}
             >
               Login
@@ -194,7 +195,7 @@ export const LoginForm = () => {
             <Button
               type="button"
               variant="ghost"
-              className={`rounded-full px-8 py-3 font-extrabold text-[15px] transition-all duration-300 ${activeTab === 'signup' ? 'bg-white text-secondary shadow-[0_4px_15px_rgba(0,0,0,0.08)] hover:bg-white' : 'text-gray-500 hover:text-secondary hover:bg-gray-200/50'}`}
+              className={`rounded-full px-8 py-3 font-extrabold text-[15px] transition-all duration-300 ${activeTab === 'signup' ? `bg-white ${isSuperAdmin ? 'text-cyan-600' : 'text-secondary'} shadow-[0_4px_15px_rgba(0,0,0,0.08)] hover:bg-white` : `text-gray-500 hover:${isSuperAdmin ? 'text-cyan-600' : 'text-secondary'} hover:bg-gray-200/50`}`}
               onClick={() => setActiveTab('signup')}
             >
               Signup
@@ -205,7 +206,7 @@ export const LoginForm = () => {
             {activeTab === 'login' ? (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2.5 group">
-                  <Label htmlFor="rollNo" className="text-sm font-bold text-gray-700 ml-1 group-focus-within:text-secondary transition-colors">User ID</Label>
+                  <Label htmlFor="rollNo" className="text-sm font-bold text-gray-700 ml-1 group-focus-within:text-secondary transition-colors">User ID / Email</Label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                        <User className="h-5 w-5 text-gray-400 group-focus-within:text-secondary transition-colors" />
@@ -213,13 +214,13 @@ export const LoginForm = () => {
                     <Input
                       id="rollNo"
                       type="text"
-                      placeholder="Enter your User ID"
+                      placeholder="Enter your User ID or Email"
                       value={formData.rollNo}
                       onChange={(e) => {
                         setFormData(prev => ({ ...prev, rollNo: e.target.value }));
                         fetchUserDetails(e.target.value);
                       }}
-                      className="pl-12 py-4 bg-gray-50/80 border-gray-200/80 hover:border-primary/50 hover:bg-white focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:border-primary focus-visible:bg-white transition-all duration-300 rounded-xl shadow-sm text-sm font-medium placeholder:text-gray-400"
+                      className={`pl-12 py-4 bg-gray-50/80 border-gray-200/80 hover:border-primary/50 hover:bg-white focus-visible:ring-4 ${isSuperAdmin ? 'focus-visible:ring-cyan-500/20 focus-visible:border-cyan-500' : 'focus-visible:ring-primary/20 focus-visible:border-primary'} focus-visible:bg-white transition-all duration-300 rounded-xl shadow-sm text-sm font-medium placeholder:text-gray-400`}
                       required
                     />
                   </div>
@@ -250,7 +251,7 @@ export const LoginForm = () => {
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      className="pl-12 pr-12 py-4 bg-gray-50/80 border-gray-200/80 hover:border-primary/50 hover:bg-white focus-visible:ring-4 focus-visible:ring-primary/20 focus-visible:border-primary focus-visible:bg-white transition-all duration-300 rounded-xl shadow-sm text-sm font-medium placeholder:text-gray-400"
+                      className={`pl-12 pr-12 py-4 bg-gray-50/80 border-gray-200/80 hover:border-primary/50 hover:bg-white focus-visible:ring-4 ${isSuperAdmin ? 'focus-visible:ring-cyan-500/20 focus-visible:border-cyan-500' : 'focus-visible:ring-primary/20 focus-visible:border-primary'} focus-visible:bg-white transition-all duration-300 rounded-xl shadow-sm text-sm font-medium placeholder:text-gray-400`}
                       required
                     />
                     <Button
@@ -273,7 +274,7 @@ export const LoginForm = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full mt-2 bg-gradient-to-r from-primary to-[#ffca4f] hover:from-[#e5a90d] hover:to-primary text-secondary-foreground py-5 rounded-xl text-[1rem] font-extrabold shadow-[0_8px_20px_rgba(245,184,17,0.3)] hover:shadow-[0_12px_25px_rgba(245,184,17,0.4)] hover:-translate-y-[2px] transition-all duration-300 active:translate-y-0"
+                  className={`w-full mt-2 bg-gradient-to-r ${isSuperAdmin ? 'from-purple-600 to-cyan-500 hover:from-purple-700 hover:to-cyan-600 text-white shadow-[0_8px_20px_rgba(6,182,212,0.3)] hover:shadow-[0_12px_25px_rgba(6,182,212,0.4)]' : 'from-primary to-[#ffca4f] hover:from-[#e5a90d] hover:to-primary text-secondary-foreground shadow-[0_8px_20px_rgba(245,184,17,0.3)] hover:shadow-[0_12px_25px_rgba(245,184,17,0.4)]'} py-5 rounded-xl text-[1rem] font-extrabold transition-all duration-300 hover:-translate-y-[2px] active:translate-y-0`}
                 >
                   Sign In
                 </Button>
@@ -346,7 +347,7 @@ export const LoginForm = () => {
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full mt-2 bg-gradient-to-r from-primary to-[#ffca4f] hover:from-[#e5a90d] hover:to-primary text-secondary-foreground py-5 rounded-xl text-[1rem] font-extrabold shadow-[0_8px_20px_rgba(245,184,17,0.3)] hover:shadow-[0_12px_25px_rgba(245,184,17,0.4)] hover:-translate-y-[2px] transition-all duration-300 active:translate-y-0"
+                  className={`w-full mt-2 bg-gradient-to-r ${isSuperAdmin ? 'from-purple-600 to-cyan-500 hover:from-purple-700 hover:to-cyan-600 text-white shadow-[0_8px_20px_rgba(6,182,212,0.3)] hover:shadow-[0_12px_25px_rgba(6,182,212,0.4)]' : 'from-primary to-[#ffca4f] hover:from-[#e5a90d] hover:to-primary text-secondary-foreground shadow-[0_8px_20px_rgba(245,184,17,0.3)] hover:shadow-[0_12px_25px_rgba(245,184,17,0.4)]'} py-5 rounded-xl text-[1rem] font-extrabold transition-all duration-300 hover:-translate-y-[2px] active:translate-y-0`}
                 >
                   Create Account
                 </Button>
@@ -357,10 +358,10 @@ export const LoginForm = () => {
       </div>
 
       {/* Right Column: Premium Illustration Area */}
-      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-gradient-to-br from-[#2C3171] via-[#212555] to-[#12142d]">
+      <div className={`hidden lg:flex lg:w-[55%] relative overflow-hidden bg-gradient-to-br ${isSuperAdmin ? 'from-purple-700 via-slate-900 to-cyan-600' : 'from-[#2C3171] via-[#212555] to-[#12142d]'} transition-all duration-1000`}>
         {/* Abstract Glowing Background Orbs */}
-        <div className="absolute top-[-10%] right-[-10%] w-[45rem] h-[45rem] bg-primary/20 rounded-full blur-[120px] animate-pulse pointer-events-none" style={{ animationDuration: '8s' }} />
-        <div className="absolute bottom-[-15%] left-[-15%] w-[40rem] h-[40rem] bg-blue-500/15 rounded-full blur-[100px] pointer-events-none" />
+        <div className={`absolute top-[-10%] right-[-10%] w-[45rem] h-[45rem] ${isSuperAdmin ? 'bg-cyan-500/20' : 'bg-primary/20'} rounded-full blur-[120px] animate-pulse pointer-events-none`} style={{ animationDuration: '8s' }} />
+        <div className={`absolute bottom-[-15%] left-[-15%] w-[40rem] h-[40rem] ${isSuperAdmin ? 'bg-purple-600/15' : 'bg-blue-500/15'} rounded-full blur-[100px] pointer-events-none`} />
         
         {/* subtle noise texture for premium feel */}
         <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
