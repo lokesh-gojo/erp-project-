@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import icon from "../../public/icon.png"
+import icon from "../assets/main/College_logo.png"
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 
@@ -131,6 +131,22 @@ export default function AdminDashboardPage() {
   const [addStaffLoading, setAddStaffLoading] = useState(false);
   const [addStudentLoading, setAddStudentLoading] = useState(false);
 
+  function fetchStudentsList() {
+    fetch(`${API_BASE}/users/list`)
+      .then(res => res.json())
+      .then(data => {
+        setStudents(data.map(s => ({
+          id: s.id,
+          roll: s.roll_no,
+          name: s.name,
+          email: s.email,
+          department: s.department_name,
+          year: s.year
+        })));
+      })
+      .catch(() => setStudents([]));
+  }
+
   function handleLogout() {
     localStorage.removeItem("jwt_token");
     window.location.href = "/";
@@ -169,19 +185,7 @@ export default function AdminDashboardPage() {
 
   // Fetch students
   useEffect(() => {
-    fetch(`${API_BASE}/users/list`)
-      .then(res => res.json())
-      .then(data => {
-        setStudents(data.map(s => ({
-          id: s.id,
-          roll: s.roll_no,
-          name: s.name,
-          email: s.email,
-          department: s.department_name,
-          year: s.year
-        })));
-      })
-      .catch(() => setStudents([]));
+    fetchStudentsList();
   }, []);
 
   // Fetch topics
@@ -301,13 +305,11 @@ export default function AdminDashboardPage() {
   }
 
   async function resetFacultyPassword(id) {
-    const password = prompt('Enter new password for this staff:');
-    if (!password) return;
+    if (!confirm('Reset password for this staff member?')) return;
     try {
       const res = await fetch(`${API_BASE}/users/reset-password-faculty/${id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        headers: { 'Content-Type': 'application/json' }
       });
       const result = await res.json();
       if (result.success) {
@@ -418,11 +420,7 @@ export default function AdminDashboardPage() {
       });
       const result = await res.json();
       if (result.success) {
-        const studentsWithId = newStudents.map((stu, idx) => ({
-          ...stu,
-          id: Date.now() + idx
-        }));
-        setStudents((s) => [...studentsWithId, ...s]);
+        fetchStudentsList();
         setCsvPreview([]);
         setCsvEditRows([]);
         setStudentsModalOpen(false);
@@ -471,7 +469,7 @@ export default function AdminDashboardPage() {
         <nav className="flex flex-col h-full p-6 gap-3">
           <div className="font-extrabold flex flex-col items-center text-2xl mb-4 text-orange-600">
             <img src={icon} alt="" width={50} />
-            <h2>IQARENA</h2>
+            <h2>PREP TRACK</h2>
           </div>
           <SidebarLink active={view === "dashboard"} onClick={() => setView("dashboard")}>
             <span className="inline-block mr-2 align-middle">🏠</span>Dashboard
@@ -741,12 +739,12 @@ export default function AdminDashboardPage() {
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {topics.filter(topic =>
-                    topic.title.toLowerCase().includes(topicFilter.toLowerCase()) ||
-                    topic.description.toLowerCase().includes(topicFilter.toLowerCase())
+                    (topic.title || '').toLowerCase().includes(topicFilter.toLowerCase()) ||
+                    (topic.description || '').toLowerCase().includes(topicFilter.toLowerCase())
                   ).length === 0 && <div className="p-4 text-gray-500">No topics found.</div>}
                   {topics.filter(topic =>
-                    topic.title.toLowerCase().includes(topicFilter.toLowerCase()) ||
-                    topic.description.toLowerCase().includes(topicFilter.toLowerCase())
+                    (topic.title || '').toLowerCase().includes(topicFilter.toLowerCase()) ||
+                    (topic.description || '').toLowerCase().includes(topicFilter.toLowerCase())
                   ).map(topic => (
                     <div key={topic.topic_id} className="p-4 border rounded shadow-sm cursor-pointer hover:bg-orange-50" onClick={() => {
                       setActiveTopic(topic);
@@ -941,12 +939,12 @@ export default function AdminDashboardPage() {
             onChange={e => setSubTopicFilter(e.target.value)}
           />
           {filteredSubTopics.filter(sub =>
-            sub.title.toLowerCase().includes(subTopicFilter.toLowerCase()) ||
-            sub.description.toLowerCase().includes(subTopicFilter.toLowerCase())
+            (sub.title || '').toLowerCase().includes(subTopicFilter.toLowerCase()) ||
+            (sub.description || '').toLowerCase().includes(subTopicFilter.toLowerCase())
           ).length === 0 && <div className="text-gray-500">No sub-topics for this topic.</div>}
           {filteredSubTopics.filter(sub =>
-            sub.title.toLowerCase().includes(subTopicFilter.toLowerCase()) ||
-            sub.description.toLowerCase().includes(subTopicFilter.toLowerCase())
+            (sub.title || '').toLowerCase().includes(subTopicFilter.toLowerCase()) ||
+            (sub.description || '').toLowerCase().includes(subTopicFilter.toLowerCase())
           ).map(sub => (
             <div key={sub.sub_topic_id} className="p-3 border rounded mb-2 cursor-pointer hover:bg-orange-50" onClick={() => {
               const subWithQ = subTopicsWithQuestions.find(st => st.sub_topic_id === sub.sub_topic_id);

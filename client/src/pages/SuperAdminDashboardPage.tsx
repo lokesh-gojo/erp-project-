@@ -1,8 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { jwtDecode } from "jwt-decode";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import college_logo from "../assets/main/College_logo.png";
+import naac_logo from "../assets/main/NAAC-Logo-250x250-1.png";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import icon from "../../public/icon.png";
+import icon from "../assets/main/College_logo.png";
 import {
   LayoutDashboard,
   Building2,
@@ -25,7 +30,8 @@ import {
   ChevronRight,
   RefreshCw,
   X,
-  AlertCircle
+  AlertCircle,
+  Menu
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
@@ -144,6 +150,7 @@ const initialTests = [
 
 export default function SuperAdminDashboardPage() {
   const [view, setView] = useState("dashboard");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [adminUserId, setAdminUserId] = useState<string | null>(null);
 
   // Decode JWT on mount to find admin user id
@@ -152,8 +159,9 @@ export default function SuperAdminDashboardPage() {
     if (token) {
       try {
         const decoded: any = jwtDecode(token);
-        if (decoded && decoded.id) {
-          setAdminUserId(decoded.id);
+        const userId = decoded?.user_id || decoded?.id;
+        if (userId) {
+          setAdminUserId(userId);
         }
       } catch (err) {
         console.error("Error decoding token:", err);
@@ -162,6 +170,7 @@ export default function SuperAdminDashboardPage() {
   }, []);
 
   // State definitions
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [faculty, setFaculty] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -170,6 +179,24 @@ export default function SuperAdminDashboardPage() {
   const [topics, setTopics] = useState<any[]>([]);
   const [subTopics, setSubTopics] = useState<any[]>([]);
   const [subTopicsWithQuestions, setSubTopicsWithQuestions] = useState<any[]>([]);
+
+  function fetchStudentsList() {
+    fetch(`${API_BASE}/users/list`)
+      .then((res) => res.json())
+      .then((data) => {
+        setStudents(
+          data.map((s: any) => ({
+            id: s.id,
+            roll: s.roll_no,
+            name: s.name,
+            email: s.email,
+            department: s.department_name,
+            year: s.year,
+          }))
+        );
+      })
+      .catch(() => setStudents([]));
+  }
 
   // Fetch initial data
   useEffect(() => {
@@ -202,21 +229,7 @@ export default function SuperAdminDashboardPage() {
       })
       .catch(() => setFaculty([]));
 
-    fetch(`${API_BASE}/users/list`)
-      .then((res) => res.json())
-      .then((data) => {
-        setStudents(
-          data.map((s: any) => ({
-            id: s.id,
-            roll: s.roll_no,
-            name: s.name,
-            email: s.email,
-            department: s.department_name,
-            year: s.year,
-          }))
-        );
-      })
-      .catch(() => setStudents([]));
+    fetchStudentsList();
 
     fetch(`${API_BASE}/question/topics`)
       .then((res) => res.json())
@@ -230,8 +243,28 @@ export default function SuperAdminDashboardPage() {
 
     fetch(`${API_BASE}/question/sub-topics-with-questions`)
       .then((res) => res.json())
-      .then((data) => setSubTopicsWithQuestions(data.sub_topics || []))
-      .catch(() => setSubTopicsWithQuestions([]));
+      .then((data) => {
+        const subTopicsList = data.sub_topics || [];
+        setSubTopicsWithQuestions(subTopicsList);
+        const allQuestions = subTopicsList.flatMap((st: any) =>
+          (st.questions || []).map((q: any) => ({
+            id: q.question_id,
+            text: q.text,
+            a: q.a,
+            b: q.b,
+            c: q.c,
+            d: q.d,
+            correct: q.correct
+          }))
+        );
+        setQuestions(allQuestions);
+      })
+      .catch(() => {
+        setSubTopicsWithQuestions([]);
+        setQuestions([]);
+      });
+
+    fetchTestsList();
   }, []);
 
   // Filter States
@@ -239,7 +272,8 @@ export default function SuperAdminDashboardPage() {
   const [studentFilters, setStudentFilters] = useState({ roll: "", name: "", department: "", year: "" });
   const [topicFilter, setTopicFilter] = useState("");
   const [subTopicFilter, setSubTopicFilter] = useState("");
-  const [testFilters, setTestFilters] = useState({ title: "", department: "" });
+  const [testFilters, setTestFilters] = useState({ title: "", department: "", date: "" });
+  const [testTab, setTestTab] = useState<"all" | "live" | "upcoming" | "completed">("all");
 
   // Memos for Filtered Lists
   const filteredFaculty = useMemo(() => {
@@ -263,12 +297,34 @@ export default function SuperAdminDashboardPage() {
 
   // Resolving missing filteredTestsList variable
   const filteredTestsList = useMemo(() => {
-    return tests.filter(
-      (t) =>
-        (!testFilters.title || t.title.toLowerCase().includes(testFilters.title.toLowerCase())) &&
-        (!testFilters.department || t.department === testFilters.department)
-    );
-  }, [tests, testFilters]);
+    return tests.filter((t) => {
+      if (testFilters.title && !t.title.toLowerCase().includes(testFilters.title.toLowerCase())) {
+        return false;
+      }
+      if (testFilters.department && t.department !== testFilters.department) {
+        return false;
+      }
+      if (testFilters.date) {
+        if (!t.scheduledFor) return false;
+        const d = new Date(t.scheduledFor);
+        if (isNaN(d.getTime())) return false;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const testLocalDateStr = `${year}-${month}-${day}`;
+        if (testFilters.date !== testLocalDateStr) return false;
+      }
+      const isLive = t.active;
+      const isUpcoming = !t.active && t.scheduledFor && new Date(t.scheduledFor) > new Date();
+      const isCompleted = !t.active && (!t.scheduledFor || new Date(t.scheduledFor) <= new Date());
+
+      if (testTab === "live" && !isLive) return false;
+      if (testTab === "upcoming" && !isUpcoming) return false;
+      if (testTab === "completed" && !isCompleted) return false;
+
+      return true;
+    });
+  }, [tests, testFilters, testTab]);
 
   // Modal and wizard states
   const [deptModalOpen, setDeptModalOpen] = useState(false);
@@ -282,6 +338,7 @@ export default function SuperAdminDashboardPage() {
   const [addStaffLoading, setAddStaffLoading] = useState(false);
 
   const [addStudentModalOpen, setAddStudentModalOpen] = useState(false);
+  const [deptLoading, setDeptLoading] = useState(false);
   const [newStudent, setNewStudent] = useState({ roll_no: "", name: "", email: "", department_id: "", year: "" });
   const [addStudentLoading, setAddStudentLoading] = useState(false);
 
@@ -354,11 +411,17 @@ export default function SuperAdminDashboardPage() {
 
   function saveDepartment(data: any) {
     if (!data.name || !data.code) return alert("Please enter department name and code");
+    setDeptLoading(true);
     const payload = {
       short_name: data.code,
       full_name: data.name,
       hod_id: data.hodId || null,
     };
+    
+    // Find the HOD name from the faculty list
+    const facultyMember = faculty.find((f) => String(f.id) === String(data.hodId));
+    const hodName = facultyMember ? facultyMember.name : null;
+
     if (data.id) {
       fetch(`${API_BASE}/dept/update-department/${data.id}`, {
         method: "PUT",
@@ -367,14 +430,19 @@ export default function SuperAdminDashboardPage() {
       })
         .then((res) => res.json())
         .then((result) => {
+          setDeptLoading(false);
           if (result.success) {
-            setDepartments((d) => d.map((x) => (x.id === data.id ? { ...x, ...data } : x)));
+            setDepartments((d) => d.map((x) => (x.id === data.id ? { ...x, ...data, hodName } : x)));
             setDeptModalOpen(false);
+            alert("Department updated successfully.");
           } else {
             alert(result.error || "Failed to update department");
           }
         })
-        .catch((err) => alert("Error updating department: " + (err?.message || "Unknown error")));
+        .catch((err) => {
+          setDeptLoading(false);
+          alert("Error updating department: " + (err?.message || "Unknown error"));
+        });
     } else {
       fetch(`${API_BASE}/dept/add-department`, {
         method: "POST",
@@ -383,14 +451,19 @@ export default function SuperAdminDashboardPage() {
       })
         .then((res) => res.json())
         .then((result) => {
+          setDeptLoading(false);
           if (result.success) {
-            setDepartments((d) => [...d, { ...data, id: result.insertedId }]);
+            setDepartments((d) => [...d, { ...data, id: result.insertedId, hodName }]);
             setDeptModalOpen(false);
+            alert("Department created successfully.");
           } else {
             alert(result.error || "Failed to add department");
           }
         })
-        .catch((err) => alert("Error adding department: " + (err?.message || "Unknown error")));
+        .catch((err) => {
+          setDeptLoading(false);
+          alert("Error adding department: " + (err?.message || "Unknown error"));
+        });
     }
   }
 
@@ -455,14 +528,20 @@ export default function SuperAdminDashboardPage() {
   }
 
   function saveFaculty(data: any) {
-    if (!data.name || !data.email) return alert("Please provide name and email");
+    if (!data.name || !data.email || !data.roll || !data.department) {
+      return alert("Please provide name, email, roll number, and department");
+    }
+    const deptObj = departments.find((d) => d.code === data.department);
+    if (!deptObj) {
+      return alert("Please select a valid department");
+    }
+    const payload = {
+      roll_no: data.roll,
+      name: data.name,
+      email: data.email,
+      department_id: deptObj.id,
+    };
     if (data.id) {
-      const payload = {
-        roll_no: data.roll,
-        name: data.name,
-        email: data.email,
-        department_id: departments.find((d) => d.code === data.department)?.id || data.department,
-      };
       fetch(`${API_BASE}/users/update-faculty/${data.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -471,27 +550,48 @@ export default function SuperAdminDashboardPage() {
         .then((res) => res.json())
         .then((result) => {
           if (result.success) {
-            setFaculty((f) => f.map((x) => (x.id === data.id ? { ...x, ...data } : x)));
+            setFaculty((f) => f.map((x) => (x.id === data.id ? { ...x, ...data, department: deptObj.code } : x)));
             setFacultyModalOpen(false);
+            alert("Faculty profile updated successfully.");
           } else {
             alert(result.error || "Failed to update faculty");
           }
         })
         .catch((err) => alert("Error updating faculty: " + (err?.message || "Unknown error")));
     } else {
-      const id = Math.max(0, ...faculty.map((f) => f.id)) + 1;
-      setFaculty((f) => [...f, { ...data, id }]);
-      setFacultyModalOpen(false);
+      fetch(`${API_BASE}/users/add-staff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.success) {
+            setFaculty((f) => [
+              {
+                id: result.insertedId,
+                roll: data.roll,
+                name: data.name,
+                email: data.email,
+                department: deptObj.code,
+              },
+              ...f,
+            ]);
+            setFacultyModalOpen(false);
+            alert("Faculty added successfully.");
+          } else {
+            alert(result.error || "Failed to add faculty.");
+          }
+        })
+        .catch((err) => alert("Error adding faculty: " + (err?.message || "Unknown error")));
     }
   }
 
   function resetFacultyPassword(id: number) {
-    const password = prompt("Enter new password for this staff:");
-    if (!password) return;
-    fetch(`${API_BASE}/users/reset-password-admin/${id}`, {
+    if (!confirm("Reset password for this staff member?")) return;
+    fetch(`${API_BASE}/users/reset-password-faculty/${id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
     })
       .then((res) => res.json())
       .then((result) => {
@@ -596,11 +696,7 @@ export default function SuperAdminDashboardPage() {
       });
       const result = await res.json();
       if (result.success) {
-        const studentsWithId = newStudents.map((stu, idx) => ({
-          ...stu,
-          id: Date.now() + idx,
-        }));
-        setStudents((s) => [...studentsWithId, ...s]);
+        fetchStudentsList();
         setCsvPreview([]);
         setCsvEditRows([]);
         setStudentsModalOpen(false);
@@ -700,35 +796,266 @@ export default function SuperAdminDashboardPage() {
   }
 
   /* -------------------- Tests Wizard -------------------- */
-  const testWizardInit = { title: "", department: "", scheduledFor: "", duration: 30, questions: [] };
+  const testWizardInit = {
+    facultyId: "",
+    facultyName: "",
+    title: "",
+    subject: "",
+    department: "",
+    scheduledFor: "",
+    duration: 30,
+    topicId: "",
+    subTopicId: "",
+    numQuestions: "",
+  };
   const [testDraft, setTestDraft] = useState<any>(testWizardInit);
   const [testStep, setTestStep] = useState(1);
+  // Faculty topics loaded on-demand when faculty is selected
+  const [wizardFacultyTopics, setWizardFacultyTopics] = useState<any[]>([]);
+  const [wizardFacultyTopicsLoading, setWizardFacultyTopicsLoading] = useState(false);
+  const [wizardSubTopics, setWizardSubTopics] = useState<any[]>([]);
+  const [wizardQuestionCount, setWizardQuestionCount] = useState(0);
+
+  async function fetchFacultyTopics(facultyId: string) {
+    if (!facultyId) { setWizardFacultyTopics([]); return; }
+    setWizardFacultyTopicsLoading(true);
+    try {
+      const token = localStorage.getItem("jwt_token");
+      const res = await fetch(`${API_BASE}/users/faculty/${facultyId}/topics`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setWizardFacultyTopics(data.topics || []);
+    } catch { setWizardFacultyTopics([]); }
+    finally { setWizardFacultyTopicsLoading(false); }
+  }
 
   function openTestWizard() {
     setTestDraft(testWizardInit);
     setTestStep(1);
+    setWizardFacultyTopics([]);
+    setWizardSubTopics([]);
+    setWizardQuestionCount(0);
     setTestWizardOpen(true);
   }
 
-  function addQuestionToTest(q: any) {
-    setTestDraft((t: any) => ({ ...t, questions: [...t.questions, q] }));
+  function fetchTestsList() {
+    const token = localStorage.getItem("jwt_token");
+    fetch(`${API_BASE}/test`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setTests(
+            (data.tests || []).map((t: any) => ({
+              id: t.test_id,
+              title: t.title,
+              department: t.dept_short_name || t.department_name || "All",
+              scheduledFor: t.date,
+              duration: t.duration_minutes,
+              active: t.is_active === 1 || t.is_active === true,
+              subject: t.subject
+            }))
+          );
+        }
+      })
+      .catch(() => setTests([]));
   }
 
-  function publishTest() {
-    if (!testDraft.title || !testDraft.department || !testDraft.scheduledFor) {
-      return alert("Please fill basic test info");
+  async function publishTest() {
+    if (!testDraft.facultyId || !testDraft.title || !testDraft.subject || !testDraft.department || !testDraft.scheduledFor) {
+      return alert("Please fill all required fields (Faculty, Title, Subject, Department, Date)");
     }
-    const id = Math.max(0, ...tests.map((t) => t.id)) + 1;
-    setTests((ts) => [...ts, { ...testDraft, id, status: "Published", active: false }]);
-    setTestWizardOpen(false);
-    alert("Test scheduled and published successfully.");
+    if (!testDraft.subTopicId || !testDraft.numQuestions) {
+      return alert("Please select a topic/subtopic and specify question count");
+    }
+    const token = localStorage.getItem("jwt_token");
+    const deptObj = departments.find((d) => d.code === testDraft.department);
+    const bodyPayload = {
+      title: testDraft.title,
+      subject: testDraft.subject,
+      description: "",
+      department_id: deptObj ? deptObj.id : null,
+      year: "1",
+      date: testDraft.scheduledFor,
+      duration_minutes: testDraft.duration,
+      num_questions: parseInt(testDraft.numQuestions, 10),
+      is_active: 0,
+      topic_id: testDraft.topicId,
+      sub_topic_id: testDraft.subTopicId,
+      faculty_id: testDraft.facultyId,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/test`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(bodyPayload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Assign questions from the subtopic automatically
+        const testId = data.test?.test_id || data.testId;
+        if (testId) {
+          await fetch(`${API_BASE}/test/${testId}/assign-questions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ sub_topic_id: testDraft.subTopicId, num_questions: parseInt(testDraft.numQuestions, 10) })
+          });
+        }
+        alert("Test scheduled and published successfully.");
+        setTestWizardOpen(false);
+        fetchTestsList();
+      } else {
+        alert(data.error || "Failed to schedule test");
+      }
+    } catch (err: any) {
+      alert("Error publishing test: " + err.message);
+    }
   }
 
-  function toggleTestActive(id: number) {
-    setTests((ts) => ts.map((t) => (t.id === id ? { ...t, active: !t.active } : t)));
+  async function toggleTestActive(id: number) {
+    const token = localStorage.getItem("jwt_token");
+    try {
+      const res = await fetch(`${API_BASE}/test/${id}/toggle-status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchTestsList();
+      } else {
+        alert(data.error || "Failed to toggle test status");
+      }
+    } catch (err: any) {
+      alert("Error toggling test status: " + err.message);
+    }
+  }
+
+  async function deleteTest(id: number) {
+    if (!confirm("Are you sure you want to delete this test?")) return;
+    const token = localStorage.getItem("jwt_token");
+    try {
+      const res = await fetch(`${API_BASE}/test/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Test deleted successfully.");
+        fetchTestsList();
+      } else {
+        alert(data.error || "Failed to delete test");
+      }
+    } catch (err: any) {
+      alert("Error deleting test: " + err.message);
+    }
   }
 
   /* -------------------- Reports -------------------- */
+  const [reportSubView, setReportSubView] = useState<"overview" | "testpdf" | "students">("overview");
+  // Test-wise PDF states (reusing faculty report pattern)
+  const [reportTests, setReportTests] = useState<any[]>([]);
+  const [reportTestsLoading, setReportTestsLoading] = useState(false);
+  const [reportSelectedTest, setReportSelectedTest] = useState<any>(null);
+  const [reportTestAnalysis, setReportTestAnalysis] = useState<any>(null);
+  const [reportAnalysisLoading, setReportAnalysisLoading] = useState(false);
+  const [reportPdfUrl, setReportPdfUrl] = useState<string>("");
+  const [reportPdfLoading, setReportPdfLoading] = useState(false);
+  const [reportFilterDate, setReportFilterDate] = useState("");
+  const [reportFilterSearch, setReportFilterSearch] = useState("");
+
+  const filteredReportTests = useMemo(() => {
+    return reportTests.filter((t) => {
+      if (reportFilterDate) {
+        if (!t.date) return false;
+        const d = new Date(t.date);
+        if (isNaN(d.getTime())) return false;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const testLocalDateStr = `${year}-${month}-${day}`;
+        if (testLocalDateStr !== reportFilterDate) return false;
+      }
+      if (reportFilterSearch) {
+        const query = reportFilterSearch.toLowerCase();
+        const matchTitle = t.title?.toLowerCase().includes(query);
+        const matchFaculty = t.facultyName?.toLowerCase().includes(query);
+        if (!matchTitle && !matchFaculty) return false;
+      }
+      return true;
+    });
+  }, [reportTests, reportFilterDate, reportFilterSearch]);
+
+
+  useEffect(() => {
+    let active = true;
+    let localUrl = "";
+    if (reportSelectedTest && reportTestAnalysis) {
+      setReportPdfLoading(true);
+      generatePDFBlobUrl(reportSelectedTest, reportTestAnalysis)
+        .then((url) => {
+          if (active) {
+            setReportPdfUrl(url);
+            localUrl = url;
+          } else {
+            URL.revokeObjectURL(url);
+          }
+        })
+        .catch((err) => {
+          console.error("Error generating PDF preview:", err);
+        })
+        .finally(() => {
+          if (active) setReportPdfLoading(false);
+        });
+    } else {
+      setReportPdfUrl("");
+    }
+    return () => {
+      active = false;
+      if (localUrl) {
+        URL.revokeObjectURL(localUrl);
+      }
+    };
+  }, [reportSelectedTest, reportTestAnalysis]);
+
+  async function fetchReportTests() {
+    setReportTestsLoading(true);
+    try {
+      const token = localStorage.getItem("jwt_token");
+      const res = await fetch(`${API_BASE}/reports/tests`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      setReportTests(data.tests || []);
+    } catch { setReportTests([]); }
+    finally { setReportTestsLoading(false); }
+  }
+
+  async function fetchReportTestAnalysis(testId: number) {
+    setReportAnalysisLoading(true);
+    try {
+      const token = localStorage.getItem("jwt_token");
+      const res = await fetch(`${API_BASE}/reports/test-analysis/${testId}`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      setReportTestAnalysis(data.testAnalysis || null);
+    } catch { setReportTestAnalysis(null); }
+    finally { setReportAnalysisLoading(false); }
+  }
   const [reportFilter, setReportFilter] = useState({ department: "", testId: "", from: "", to: "" });
   function generateReportCSV() {
     const rows = students.map((s) => ({
@@ -738,6 +1065,155 @@ export default function SuperAdminDashboardPage() {
       avg: Math.floor(Math.random() * 50) + 50,
     }));
     exportToCSV("iqarena_report_students.csv", rows);
+  }
+
+  async function buildPDFDoc(selectedTest: any, testAnalysis: any): Promise<jsPDF> {
+    const { testInfo, stats, presentStudents, absentStudents, topPerformers } = testAnalysis;
+    const doc = new jsPDF();
+
+    const loadImageAsDataUrl = (src: string): Promise<string | null> =>
+      new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (ctx) { ctx.drawImage(img, 0, 0); resolve(canvas.toDataURL("image/png")); } else resolve(null);
+        };
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+
+    const collegeLogoData = await loadImageAsDataUrl(college_logo);
+    const naacLogoData = await loadImageAsDataUrl(naac_logo);
+
+    // Header
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 55, "F");
+    doc.setTextColor(100, 100, 100); doc.setFontSize(7); doc.setFont("helvetica", "normal");
+    doc.text("THENI MELAPETTAI HINDU NADARGAL URAVINMURAI", 105, 8, { align: "center" });
+    doc.setTextColor(33, 47, 61); doc.setFontSize(14); doc.setFont("helvetica", "bold");
+    doc.text("NADAR SARASWATHI COLLEGE OF ENGINEERING & TECHNOLOGY", 105, 16, { align: "center" });
+    if (collegeLogoData) doc.addImage(collegeLogoData, "PNG", 15, 19, 25, 25);
+    doc.setTextColor(80, 80, 80); doc.setFontSize(7); doc.setFont("helvetica", "normal");
+    doc.text("Approved by AICTE, New Delhi & Affiliated to Anna University, Chennai", 105, 23, { align: "center" });
+    doc.text("Accredited by NAAC with \"A\" Grade | An ISO 9001:2015 Certified Institution", 105, 27, { align: "center" });
+    doc.text("Vadapudupatti, Annanji (po), Theni - 625 531", 105, 31, { align: "center" });
+    doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 140, 0);
+    doc.text("TEST ANALYSIS REPORT", 105, 38, { align: "center" });
+    doc.setDrawColor(255, 140, 0); doc.setLineWidth(0.7); doc.line(15, 42, 195, 42);
+    if (naacLogoData) doc.addImage(naacLogoData, "PNG", 172, 20, 20, 20);
+    doc.setTextColor(0, 0, 0); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+    doc.text(testInfo?.title || selectedTest.title, 15, 48);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+    doc.text(`Date: ${testInfo?.date ? new Date(testInfo.date).toLocaleDateString() : "-"} | Duration: ${testInfo?.duration || "-"} min | Questions: ${testInfo?.totalQuestions || "-"}`, 15, 54);
+    if (testInfo?.facultyName) doc.text(`Faculty: ${testInfo.facultyName}`, 195, 54, { align: "right" });
+
+    // Stats Row
+    const startY = 62; const boxWidth = 45; const boxHeight = 22;
+    const drawStatBox = (x: number, label: string, value: string, color: number[]) => {
+      doc.setDrawColor(220, 220, 220); doc.rect(x, startY, boxWidth, boxHeight);
+      doc.setTextColor(color[0], color[1], color[2]); doc.setFontSize(16); doc.setFont("helvetica", "bold");
+      doc.text(value, x + boxWidth / 2, startY + 10, { align: "center" });
+      doc.setTextColor(100, 100, 100); doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      doc.text(label, x + boxWidth / 2, startY + 18, { align: "center" });
+    };
+    drawStatBox(15, "Average Percentage", `${stats.avgPercentage}%`, [33, 47, 61]);
+    drawStatBox(65, "Highest Score", `${stats.highestScore}`, [40, 167, 69]);
+    drawStatBox(115, "Lowest Score", `${stats.lowestScore}`, [220, 53, 69]);
+    drawStatBox(165, "Pass Rate", `${stats.passRate}%`, [255, 140, 0]);
+
+    const attendanceY = 96;
+    doc.setTextColor(0, 0, 0); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+    doc.text(`Attended: ${(presentStudents || []).length} students`, 15, attendanceY);
+    doc.text(`Not Attended: ${(absentStudents || []).length} students`, 115, attendanceY);
+
+    // Top Performers
+    const performersY = 104;
+    doc.setFillColor(255, 140, 0); doc.rect(15, performersY, 4, 4, "F");
+    doc.setTextColor(255, 140, 0); doc.setFontSize(14); doc.setFont("helvetica", "bold");
+    doc.text("Top Performers", 22, performersY + 3.5);
+    autoTable(doc, {
+      startY: performersY + 8,
+      head: [["Rank", "Name", "Score"]],
+      body: (topPerformers || []).slice(0, 10).map((s: any) => [s.rank || "-", s.name, `${s.score} / ${testInfo?.totalQuestions}`]),
+      headStyles: { fillColor: [255, 140, 0], textColor: [255, 255, 255] },
+      margin: { left: 15, right: 15 }, styles: { fontSize: 9 },
+      columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: "auto" }, 2: { cellWidth: 40, halign: "right" } }
+    });
+
+    // Attended Students
+    const presentedY = (doc as any).lastAutoTable.finalY + 12;
+    doc.setFillColor(44, 62, 80); doc.rect(15, presentedY, 4, 4, "F");
+    doc.setTextColor(44, 62, 80); doc.setFontSize(14); doc.setFont("helvetica", "bold");
+    doc.text("List of Students - Attended", 22, presentedY + 3.5);
+    autoTable(doc, {
+      startY: presentedY + 8,
+      head: [["Si.No", "Register No", "Name", "Department", "Year", "Score"]],
+      body: (presentStudents || []).map((s: any, i: number) => [i + 1, s.rollNo, s.name, s.department || "-", s.year || "-", `${s.score} / ${testInfo?.totalQuestions}`]),
+      headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [245, 245, 245] }, margin: { left: 15, right: 15 }, styles: { fontSize: 9 }
+    });
+
+    // Absent Students
+    if ((absentStudents || []).length > 0) {
+      let absentTableY = (doc as any).lastAutoTable.finalY + 12;
+      if (absentTableY > 260) { doc.addPage(); absentTableY = 25; }
+      doc.setFillColor(231, 76, 60); doc.rect(15, absentTableY, 4, 4, "F");
+      doc.setTextColor(231, 76, 60); doc.setFontSize(14); doc.setFont("helvetica", "bold");
+      doc.text("List of Students - Not Attended", 22, absentTableY + 3.5);
+      autoTable(doc, {
+        startY: absentTableY + 8,
+        head: [["Si.No", "Register No", "Name", "Department", "Year"]],
+        body: (absentStudents || []).map((s: any, i: number) => [i + 1, s.rollNo, s.name, s.department || "-", s.year || "-"]),
+        headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255] },
+        alternateRowStyles: { fillColor: [245, 245, 245] }, margin: { left: 15, right: 15 }, styles: { fontSize: 9 }
+      });
+    }
+
+    // Signatures
+    const lastTableBottom = (doc as any).lastAutoTable.finalY || 150;
+    const footerLineY = 282;
+    if (lastTableBottom > 250) {
+      doc.addPage();
+      doc.setTextColor(0,0,0); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+      doc.line(15, 140, 75, 140); doc.text("Department Coordinator", 15, 146);
+      doc.line(135, 140, 195, 140); doc.text("Head Of The Department", 195, 146, { align: "right" });
+    } else {
+      const signatureLineY = lastTableBottom + (footerLineY - lastTableBottom) / 2;
+      doc.setTextColor(0,0,0); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+      doc.line(15, signatureLineY, 75, signatureLineY); doc.text("Department Coordinator", 15, signatureLineY + 6);
+      doc.line(135, signatureLineY, 195, signatureLineY); doc.text("Head Of The Department", 195, signatureLineY + 6, { align: "right" });
+    }
+
+    // Footer on all pages
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setDrawColor(255, 140, 0); doc.setLineWidth(0.2); doc.line(15, 282, 195, 282);
+      doc.setTextColor(150, 150, 150); doc.setFontSize(8); doc.setFont("helvetica", "italic");
+      doc.text("Developed by Innovative Software Product Industry of NSCET", 105, 288, { align: "center" });
+      doc.text(`Page ${i} of ${pageCount}`, 195, 288, { align: "right" });
+    }
+
+    return doc;
+  }
+
+  async function exportSuperAdminTestReportPDF(selectedTest: any, testAnalysis: any) {
+    try {
+      const doc = await buildPDFDoc(selectedTest, testAnalysis);
+      const title = testAnalysis?.testInfo?.title || selectedTest.title;
+      doc.save(`Test_Report_${title.replace(/\s+/g, "_")}.pdf`);
+    } catch (err: any) {
+      alert("Error exporting PDF: " + err.message);
+    }
+  }
+
+  async function generatePDFBlobUrl(selectedTest: any, testAnalysis: any): Promise<string> {
+    const doc = await buildPDFDoc(selectedTest, testAnalysis);
+    const blob = doc.output("blob");
+    return URL.createObjectURL(blob);
   }
 
   /* -------------------- Password Update -------------------- */
@@ -767,16 +1243,16 @@ export default function SuperAdminDashboardPage() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-800 font-sans">
-      {/* Left Sidebar */}
+      {/* Left Sidebar (Desktop) */}
       <aside className="w-64 bg-white border-r border-slate-100 shadow-sm hidden md:flex flex-col justify-between">
         <div className="p-6">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8 cursor-pointer group">
-            <div className="bg-orange-500 p-2.5 rounded-xl shadow-md shadow-orange-500/10 group-hover:scale-105 transition-transform duration-200">
+            <div className="bg-purple-600 p-2.5 rounded-xl shadow-md shadow-purple-600/10 group-hover:scale-105 transition-transform duration-200">
               <img src={icon} alt="Logo" className="h-6 w-6 invert object-contain" />
             </div>
             <div>
-              <h2 className="font-extrabold text-xl tracking-tight text-slate-800">IQARENA</h2>
+              <h2 className="font-extrabold text-xl tracking-tight text-slate-800">PREP TRACK</h2>
               <span className="text-[10px] text-cyan-600 font-semibold tracking-wider uppercase">Portal</span>
             </div>
           </div>
@@ -811,7 +1287,7 @@ export default function SuperAdminDashboardPage() {
         <div className="p-6 border-t border-slate-100 bg-slate-50/50">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-all font-medium"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-500 hover:bg-purple-50 hover:text-purple-700 transition-all font-medium"
           >
             <LogOut className="h-4.5 w-4.5" />
             Sign Out
@@ -819,17 +1295,99 @@ export default function SuperAdminDashboardPage() {
         </div>
       </aside>
 
+      {/* Mobile Sidebar Navigation Drawer */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+
+          {/* Drawer container */}
+          <aside className="relative flex flex-col justify-between w-64 max-w-[80vw] h-full bg-white border-r border-slate-150 shadow-xl z-50 animate-in slide-in-from-left duration-300">
+            <div className="p-6">
+              {/* Header inside drawer */}
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-2.5">
+                  <div className="bg-purple-600 p-2 rounded-xl">
+                    <img src={icon} alt="Logo" className="h-5 w-5 invert object-contain" />
+                  </div>
+                  <div>
+                    <h2 className="font-extrabold text-lg text-slate-800">PREP TRACK</h2>
+                    <span className="text-[9px] text-cyan-600 font-semibold uppercase">Portal</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMobileSidebarOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Navigation Links inside drawer */}
+              <nav className="flex flex-col gap-1.5">
+                {[
+                  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4.5 w-4.5" /> },
+                  { id: "departments", label: "Departments", icon: <Building2 className="h-4.5 w-4.5" /> },
+                  { id: "staff", label: "Faculty & Staff", icon: <Users className="h-4.5 w-4.5" /> },
+                  { id: "students", label: "Students", icon: <GraduationCap className="h-4.5 w-4.5" /> },
+                  { id: "questions", label: "Question Bank", icon: <BookOpen className="h-4.5 w-4.5" /> },
+                  { id: "tests", label: "Tests Management", icon: <FileText className="h-4.5 w-4.5" /> },
+                  { id: "reports", label: "Reports & Analytics", icon: <BarChart3 className="h-4.5 w-4.5" /> }
+                ].map((item) => (
+                  <SidebarLink
+                    key={item.id}
+                    icon={item.icon}
+                    active={view === item.id}
+                    onClick={() => {
+                      setView(item.id);
+                      setMobileSidebarOpen(false);
+                    }}
+                  >
+                    {item.label}
+                  </SidebarLink>
+                ))}
+              </nav>
+            </div>
+
+            {/* Bottom Section in drawer */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+              <button
+                onClick={() => {
+                  setMobileSidebarOpen(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-500 hover:bg-purple-50 hover:text-purple-700 transition-all font-medium"
+              >
+                <LogOut className="h-4.5 w-4.5" />
+                Sign Out
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
-        <header className="flex items-center justify-between px-8 py-5 bg-white border-b border-slate-100">
-          <h1 className="text-xl font-bold text-slate-800 capitalize tracking-tight">
-            {view === "dashboard" ? "System Overview" : view}
-          </h1>
+        <header className="flex items-center justify-between px-4 sm:px-8 py-5 bg-white border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-50 md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-800 capitalize tracking-tight">
+              {view === "dashboard" ? "System Overview" : view}
+            </h1>
+          </div>
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-8.5 w-8.5 bg-gradient-to-tr from-orange-400 to-cyan-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md shadow-orange-500/10">
+              <div className="h-8.5 w-8.5 bg-gradient-to-tr from-purple-500 to-cyan-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md shadow-purple-600/10">
                 SA
               </div>
               <div className="text-right hidden sm:block">
@@ -850,7 +1408,7 @@ export default function SuperAdminDashboardPage() {
               </button>
               <button
                 onClick={handleLogout}
-                className="p-2.5 rounded-lg border border-slate-150 hover:bg-slate-50 text-slate-500 hover:text-orange-600 transition-colors"
+                className="p-2.5 rounded-lg border border-slate-150 hover:bg-slate-50 text-slate-500 hover:text-purple-700 transition-colors"
                 title="Logout"
               >
                 <LogOut className="h-4 w-4" />
@@ -860,17 +1418,17 @@ export default function SuperAdminDashboardPage() {
         </header>
 
         {/* Workspace Main Area */}
-        <main className="p-8 flex-1 overflow-y-auto">
+        <main className="p-4 sm:p-8 flex-1 overflow-y-auto">
           {/* Dashboard View */}
           {view === "dashboard" && (
             <div className="space-y-8 animate-in fade-in duration-300">
               {/* Welcome Alert */}
-              <div className="bg-gradient-to-r from-orange-500/5 to-cyan-500/5 border border-slate-200/60 p-6 rounded-2xl flex items-center justify-between">
+              <div className="bg-gradient-to-r from-purple-600/5 to-cyan-500/5 border border-slate-200/60 p-6 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-slate-800">Welcome to IQARENA Management Suite</h3>
+                  <h3 className="text-lg font-bold text-slate-800">Welcome to PREP TRACK Management Suite</h3>
                   <p className="text-sm text-slate-500">Configure departments, process student data imports, administer tests, and track real-time analytics.</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                   <span className="flex h-2.5 w-2.5 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
@@ -881,11 +1439,11 @@ export default function SuperAdminDashboardPage() {
 
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                <MetricCard title="Total Departments" value={stats.departments} icon={<Building2 className="h-5 w-5 text-orange-500" />} color="orange" />
+                <MetricCard title="Total Departments" value={stats.departments} icon={<Building2 className="h-5 w-5 text-purple-600" />} color="purple" />
                 <MetricCard title="Total Faculty" value={stats.faculty} icon={<Users className="h-5 w-5 text-cyan-500" />} color="cyan" />
-                <MetricCard title="Total Students" value={stats.students} icon={<GraduationCap className="h-5 w-5 text-orange-500" />} color="orange" />
+                <MetricCard title="Total Students" value={stats.students} icon={<GraduationCap className="h-5 w-5 text-purple-600" />} color="purple" />
                 <MetricCard title="Active Tests" value={stats.activeTests} icon={<CheckCircle2 className="h-5 w-5 text-cyan-500" />} color="cyan" />
-                <MetricCard title="Reports Exported" value={stats.reports} icon={<BarChart3 className="h-5 w-5 text-orange-500" />} color="orange" />
+                <MetricCard title="Reports Exported" value={stats.reports} icon={<BarChart3 className="h-5 w-5 text-purple-600" />} color="purple" />
               </div>
 
               {/* Actions & Live Monitor */}
@@ -897,7 +1455,7 @@ export default function SuperAdminDashboardPage() {
                       <CardTitle className="text-base font-bold text-slate-800">Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-3.5">
-                      <Button onClick={openAddDept} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2">
+                      <Button onClick={openAddDept} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2">
                         <Plus className="h-4 w-4" /> Add Department
                       </Button>
                       <Button onClick={openTestWizard} className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2">
@@ -966,7 +1524,7 @@ export default function SuperAdminDashboardPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => toggleTestActive(r.id)}
-                            className="text-xs border-orange-200 hover:bg-orange-50 hover:text-orange-600"
+                            className="text-xs border-purple-200 hover:bg-purple-50 hover:text-purple-700"
                           >
                             {r.active ? "Deactivate" : "Activate"}
                           </Button>
@@ -987,7 +1545,7 @@ export default function SuperAdminDashboardPage() {
                   <h2 className="text-xl font-bold text-slate-800">Departments Directory</h2>
                   <p className="text-xs text-slate-400 mt-1">Manage institutional departments and HOD staff profiles.</p>
                 </div>
-                <Button onClick={openAddDept} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold flex items-center gap-2">
+                <Button onClick={openAddDept} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-2">
                   <Plus className="h-4 w-4" /> Add Department
                 </Button>
               </div>
@@ -1001,7 +1559,7 @@ export default function SuperAdminDashboardPage() {
 
               <Table
                 columns={[
-                  { key: "code", title: "Code", render: (r) => <span className="font-bold text-orange-600">{r.code}</span> },
+                  { key: "code", title: "Code", render: (r) => <span className="font-bold text-purple-700">{r.code}</span> },
                   { key: "name", title: "Name" },
                   { key: "hodName", title: "Head of Department", render: (r) => r.hodName || <span className="text-slate-400 italic">None Assigned</span> },
                   { key: "facultyCount", title: "Faculty Members" },
@@ -1045,7 +1603,7 @@ export default function SuperAdminDashboardPage() {
                   <h2 className="text-xl font-bold text-slate-800">Faculty & Staff Members</h2>
                   <p className="text-xs text-slate-400 mt-1">Configure user accounts and assignments for lecturers and HODs.</p>
                 </div>
-                <Button onClick={() => setAddStaffModalOpen(true)} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold flex items-center gap-2">
+                <Button onClick={() => setAddStaffModalOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-2">
                   <Plus className="h-4 w-4" /> Add Staff Profile
                 </Button>
               </div>
@@ -1143,7 +1701,7 @@ export default function SuperAdminDashboardPage() {
                   <p className="text-xs text-slate-400 mt-1">Upload cohorts using spreadsheets or add candidates manually.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => setAddStudentModalOpen(true)} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold flex items-center gap-1.5">
+                  <Button onClick={() => setAddStudentModalOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-1.5">
                     <Plus className="h-4 w-4" /> Add Student
                   </Button>
                   <label htmlFor="studentsCSV" className="cursor-pointer">
@@ -1283,8 +1841,8 @@ export default function SuperAdminDashboardPage() {
                 {topics
                   .filter(
                     (t) =>
-                      t.title.toLowerCase().includes(topicFilter.toLowerCase()) ||
-                      t.description.toLowerCase().includes(topicFilter.toLowerCase())
+                      (t.title || '').toLowerCase().includes(topicFilter.toLowerCase()) ||
+                      (t.description || '').toLowerCase().includes(topicFilter.toLowerCase())
                   )
                   .map((topic) => (
                     <div
@@ -1294,16 +1852,16 @@ export default function SuperAdminDashboardPage() {
                         setFilteredSubTopics(subTopics.filter((st) => st.topic_id === topic.topic_id));
                         setSubTopicModalOpen(true);
                       }}
-                      className="p-6 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md hover:border-orange-200 transition-all cursor-pointer group flex flex-col justify-between"
+                      className="p-6 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md hover:border-purple-200 transition-all cursor-pointer group flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          <span className="text-xs bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                             Topic Module
                           </span>
                           <ChevronRight className="h-4 w-4 text-slate-300 group-hover:translate-x-1 transition-transform" />
                         </div>
-                        <h4 className="font-bold text-slate-800 text-lg group-hover:text-orange-600 transition-colors">
+                        <h4 className="font-bold text-slate-800 text-lg group-hover:text-purple-700 transition-colors">
                           {topic.title}
                         </h4>
                         <p className="text-sm text-slate-500 mt-1 line-clamp-3 leading-relaxed">
@@ -1318,8 +1876,8 @@ export default function SuperAdminDashboardPage() {
                   ))}
                 {topics.filter(
                   (t) =>
-                    t.title.toLowerCase().includes(topicFilter.toLowerCase()) ||
-                    t.description.toLowerCase().includes(topicFilter.toLowerCase())
+                    (t.title || '').toLowerCase().includes(topicFilter.toLowerCase()) ||
+                    (t.description || '').toLowerCase().includes(topicFilter.toLowerCase())
                 ).length === 0 && (
                   <div className="p-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl col-span-full">
                     No topics match the search filter criteria.
@@ -1332,19 +1890,41 @@ export default function SuperAdminDashboardPage() {
           {/* Tests Management View */}
           {view === "tests" && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Tests Scheduler & Monitoring</h2>
                   <p className="text-xs text-slate-400 mt-1">Configure parameters, schedule active session launches, and review rosters.</p>
                 </div>
-                <Button onClick={openTestWizard} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold flex items-center gap-2">
+                <Button onClick={openTestWizard} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-2 self-start sm:self-auto">
                   <Plus className="h-4 w-4" /> Create Test
                 </Button>
               </div>
 
+              {/* Segmented Category Filter Pills */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "all", label: "All Tests" },
+                  { id: "live", label: "Currently Live" },
+                  { id: "upcoming", label: "Upcoming" },
+                  { id: "completed", label: "Completed" }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setTestTab(tab.id as any)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 ${
+                      testTab === tab.id
+                        ? "bg-cyan-600 text-white shadow-md shadow-cyan-500/10"
+                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Tests Filter Panel (solving missingFiltered tests logic) */}
               <Card className="border-slate-100 shadow-sm p-5 rounded-2xl bg-white">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                     <input
@@ -1367,6 +1947,14 @@ export default function SuperAdminDashboardPage() {
                       </option>
                     ))}
                   </select>
+                  <div>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all bg-white text-slate-600"
+                      value={testFilters.date}
+                      onChange={(e) => setTestFilters((f) => ({ ...f, date: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </Card>
 
@@ -1375,22 +1963,29 @@ export default function SuperAdminDashboardPage() {
                 columns={[
                   { key: "title", title: "Test Title", render: (r) => <span className="font-semibold text-slate-800">{r.title}</span> },
                   { key: "department", title: "Assigned Department", render: (r) => <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-semibold">{r.department}</span> },
-                  { key: "scheduledFor", title: "Scheduled Date & Time", render: (r) => new Date(r.scheduledFor).toLocaleString() },
+                  { key: "scheduledFor", title: "Scheduled Date & Time", render: (r) => r.scheduledFor ? new Date(r.scheduledFor).toLocaleString() : "Not Scheduled" },
                   { key: "duration", title: "Duration", render: (r) => <span>{r.duration} minutes</span> },
                   {
                     key: "status",
                     title: "Status",
-                    render: (r) => (
-                      <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          r.active
-                            ? "bg-cyan-50 text-cyan-600"
-                            : "bg-orange-50 text-orange-600"
-                        }`}
-                      >
-                        {r.active ? "Active Now" : "Scheduled"}
-                      </span>
-                    ),
+                    render: (r) => {
+                      const isUpcoming = !r.active && r.scheduledFor && new Date(r.scheduledFor) > new Date();
+                      const isCompleted = !r.active && (!r.scheduledFor || new Date(r.scheduledFor) <= new Date());
+                      let statusText = "Active Now";
+                      let statusClass = "bg-cyan-50 text-cyan-600";
+                      if (isUpcoming) {
+                        statusText = "Upcoming";
+                        statusClass = "bg-purple-50 text-purple-700";
+                      } else if (isCompleted) {
+                        statusText = "Completed";
+                        statusClass = "bg-slate-100 text-slate-500";
+                      }
+                      return (
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusClass}`}>
+                          {statusText}
+                        </span>
+                      );
+                    },
                   },
                 ]}
                 rows={filteredTestsList}
@@ -1399,7 +1994,7 @@ export default function SuperAdminDashboardPage() {
                     <Button size="sm" variant="outline" onClick={() => toggleTestActive(r.id)} className="text-xs">
                       {r.active ? "Stop" : "Start"}
                     </Button>
-                    <Button size="sm" variant="destructive" className="text-xs bg-red-50 border-red-100 text-red-600 hover:bg-red-100">
+                    <Button size="sm" variant="destructive" onClick={() => deleteTest(r.id)} className="text-xs bg-red-50 border-red-100 text-red-600 hover:bg-red-100">
                       Remove
                     </Button>
                   </div>
@@ -1411,62 +2006,187 @@ export default function SuperAdminDashboardPage() {
           {/* Reports & Analytics View */}
           {view === "reports" && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Analytical Reports Dashboard</h2>
-                  <p className="text-xs text-slate-400 mt-1">Review campus benchmarks, export grade files, and evaluate stats.</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={generateReportCSV} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold flex items-center gap-1.5">
-                    <Download className="h-4 w-4" /> Export CSV File
-                  </Button>
-                  <Button onClick={() => alert("PDF report stub executed.")} className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold flex items-center gap-1.5">
-                    <Download className="h-4 w-4" /> Export PDF
-                  </Button>
+                  <p className="text-xs text-slate-400 mt-1">Review campus benchmarks, download PDF test reports, and evaluate stats.</p>
                 </div>
               </div>
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <MetricCard title="Average Performance (30d)" value="72%" icon={<CheckCircle2 className="h-5 w-5 text-orange-500" />} color="orange" />
-                <MetricCard title="Roster Pass Rate" value="88%" icon={<Users className="h-5 w-5 text-cyan-500" />} color="cyan" />
-                <MetricCard title="Top Candidate Avg" value="94%" icon={<GraduationCap className="h-5 w-5 text-orange-500" />} color="orange" />
-                <MetricCard title="Generated Reports" value={stats.reports} icon={<BarChart3 className="h-5 w-5 text-cyan-500" />} color="cyan" />
+              {/* Tab bar */}
+              <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
+                {(["overview", "testpdf"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => {
+                      setReportSubView(tab);
+                      if (tab === "testpdf" && reportTests.length === 0) fetchReportTests();
+                    }}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                      reportSubView === tab
+                        ? "bg-white shadow text-purple-700"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {tab === "overview" ? "Overview" : "Test-Wise PDF"}
+                  </button>
+                ))}
               </div>
 
-              {/* Custom Report Configuration Box */}
-              <Card className="border-slate-100 shadow-sm p-6 rounded-2xl bg-white">
-                <h4 className="font-bold text-slate-800 text-sm mb-3">Custom Report Generator</h4>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <select
-                    className="border border-slate-200 px-3 py-2 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all w-full sm:w-64"
-                    onChange={(e) => setReportFilter((p) => ({ ...p, department: e.target.value }))}
-                  >
-                    <option value="">All Departments</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.code}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    className="border border-slate-200 px-3 py-2 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all w-full sm:w-64"
-                    onChange={(e) => setReportFilter((p) => ({ ...p, testId: e.target.value }))}
-                  >
-                    <option value="">All Tests</option>
-                    {tests.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.title}
-                      </option>
-                    ))}
-                  </select>
-
-                  <Button onClick={() => alert("Report compiled successfully.")} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-                    Compile Report
-                  </Button>
+              {/* OVERVIEW TAB */}
+              {reportSubView === "overview" && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <MetricCard title="Average Performance (30d)" value="72%" icon={<CheckCircle2 className="h-5 w-5 text-purple-600" />} color="purple" />
+                    <MetricCard title="Roster Pass Rate" value="88%" icon={<Users className="h-5 w-5 text-cyan-500" />} color="cyan" />
+                    <MetricCard title="Top Candidate Avg" value="94%" icon={<GraduationCap className="h-5 w-5 text-purple-600" />} color="purple" />
+                    <MetricCard title="Total Tests" value={tests.length} icon={<BarChart3 className="h-5 w-5 text-cyan-500" />} color="cyan" />
+                  </div>
+                  <Card className="border-slate-100 shadow-sm p-6 rounded-2xl bg-white">
+                    <h4 className="font-bold text-slate-800 text-sm mb-3">Export Student CSV Report</h4>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <select
+                        className="border border-slate-200 px-3 py-2 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all w-full sm:w-64"
+                        onChange={(e) => setReportFilter((p) => ({ ...p, department: e.target.value }))}
+                      >
+                        <option value="">All Departments</option>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.code}>{d.name}</option>
+                        ))}
+                      </select>
+                      <Button onClick={generateReportCSV} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-1.5">
+                        <Download className="h-4 w-4" /> Export CSV
+                      </Button>
+                    </div>
+                  </Card>
                 </div>
-              </Card>
+              )}
+
+              {/* TEST-WISE PDF TAB */}
+              {reportSubView === "testpdf" && (
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  {/* Test List */}
+                  <div className="lg:col-span-1">
+                    <Card className="border-slate-100 shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-sm font-bold text-slate-700">Select Test</CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-3 pb-4 space-y-3">
+                        {/* Search and Date filter inputs */}
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Search title/faculty..."
+                            value={reportFilterSearch}
+                            onChange={(e) => setReportFilterSearch(e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                          />
+                          <div className="flex gap-1.5 items-center">
+                            <input
+                              type="date"
+                              value={reportFilterDate}
+                              onChange={(e) => setReportFilterDate(e.target.value)}
+                              className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 text-slate-600"
+                            />
+                            {reportFilterDate && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setReportFilterDate("")}
+                                className="px-2 py-1 h-auto text-xs shrink-0 text-slate-500 hover:text-slate-700"
+                              >
+                                Clear
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {reportTestsLoading ? (
+                          <div className="text-center text-slate-400 text-xs py-4">Loading tests...</div>
+                        ) : filteredReportTests.length === 0 ? (
+                          <div className="text-center text-slate-400 text-xs py-4">No matching tests found</div>
+                        ) : (
+                          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                            {filteredReportTests.map((t: any) => (
+                              <div
+                                key={t.id}
+                                onClick={async () => {
+                                  setReportSelectedTest(t);
+                                  setReportTestAnalysis(null);
+                                  await fetchReportTestAnalysis(t.id);
+                                }}
+                                className={`p-3 border rounded-xl cursor-pointer transition-colors ${
+                                  reportSelectedTest?.id === t.id
+                                    ? "bg-purple-50 border-purple-300"
+                                    : "hover:bg-slate-50 border-slate-100"
+                                }`}
+                              >
+                                <div className="font-semibold text-slate-800 text-xs leading-tight">{t.title}</div>
+                                <div className="text-xs text-slate-500 mt-0.5">{t.date ? new Date(t.date).toLocaleDateString() : "—"}</div>
+                                {t.facultyName && <div className="text-xs text-purple-500 mt-0.5">{t.facultyName}</div>}
+                                <div className="text-xs text-slate-400">{t.students} students</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Test Analysis */}
+                  <div className="lg:col-span-3">
+                    {reportAnalysisLoading || reportPdfLoading ? (
+                      <Card className="border-slate-100 shadow-sm">
+                        <CardContent className="flex items-center justify-center h-[650px]">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+                            <div className="text-slate-400 text-sm font-semibold">Generating Live PDF Preview...</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : reportSelectedTest && reportPdfUrl ? (
+                      <div className="space-y-4">
+                        {/* Header + Download Button */}
+                        <Card className="border-slate-100 shadow-sm">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div>
+                                <div className="font-bold text-slate-800 text-sm">{reportSelectedTest.title}</div>
+                                <div className="text-xs text-slate-500 mt-0.5">
+                                  Faculty: {reportTestAnalysis?.testInfo?.facultyName || "—"} · Date: {reportSelectedTest.date ? new Date(reportSelectedTest.date).toLocaleDateString() : "—"} · Questions: {reportTestAnalysis?.testInfo?.totalQuestions || "—"}
+                                </div>
+                                <div className="text-xs text-slate-400 mt-0.5">
+                                  Attended: {reportTestAnalysis?.presentStudents?.length || 0} · Absent: {reportTestAnalysis?.absentStudents?.length || 0}
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => exportSuperAdminTestReportPDF(reportSelectedTest, reportTestAnalysis)}
+                                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-2 shrink-0"
+                              >
+                                <Download className="h-4 w-4" /> Download PDF Report
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Interactive PDF IFrame Preview */}
+                        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner bg-slate-50 p-2">
+                          <iframe src={reportPdfUrl} className="w-full h-[650px] rounded-lg border-0 bg-white" title="PDF Preview" />
+                        </div>
+                      </div>
+                    ) : (
+                      <Card className="border-slate-100 shadow-sm">
+                        <CardContent className="flex items-center justify-center h-64">
+                          <div className="text-center text-slate-400">
+                            <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                            <p className="text-sm">Select a test from the list to view analysis and preview the PDF report.</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>
@@ -1489,7 +2209,7 @@ export default function SuperAdminDashboardPage() {
             />
           </div>
           <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-            <Button onClick={handleSuperAdminResetPassword} disabled={adminPwdLoading} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+            <Button onClick={handleSuperAdminResetPassword} disabled={adminPwdLoading} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
               Save Password
             </Button>
             <Button variant="outline" onClick={() => setAdminPwdModalOpen(false)} disabled={adminPwdLoading}>
@@ -1501,7 +2221,7 @@ export default function SuperAdminDashboardPage() {
 
       {/* Add / Edit Department Modal */}
       <Modal open={deptModalOpen} title={editingDept?.id ? "Edit Department" : "Add Department"} onClose={() => setDeptModalOpen(false)}>
-        <DeptForm initial={editingDept} onCancel={() => setDeptModalOpen(false)} onSave={(data) => saveDepartment(data)} faculties={faculty} />
+        <DeptForm initial={editingDept} onCancel={() => setDeptModalOpen(false)} onSave={(data) => saveDepartment(data)} faculties={faculty} loading={deptLoading} />
       </Modal>
 
       {/* Add / Edit Faculty Modal */}
@@ -1556,7 +2276,7 @@ export default function SuperAdminDashboardPage() {
             </select>
           </div>
           <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-            <Button onClick={handleAddStaff} disabled={addStaffLoading} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+            <Button onClick={handleAddStaff} disabled={addStaffLoading} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
               Create Staff Account
             </Button>
             <Button variant="outline" onClick={() => setAddStaffModalOpen(false)} disabled={addStaffLoading}>
@@ -1625,7 +2345,7 @@ export default function SuperAdminDashboardPage() {
             </div>
           </div>
           <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-            <Button onClick={handleAddStudent} disabled={addStudentLoading} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+            <Button onClick={handleAddStudent} disabled={addStudentLoading} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
               Create Student Profile
             </Button>
             <Button variant="outline" onClick={() => setAddStudentModalOpen(false)} disabled={addStudentLoading}>
@@ -1821,7 +2541,7 @@ export default function SuperAdminDashboardPage() {
           </div>
 
           <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-            <Button onClick={commitCsvStudents} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+            <Button onClick={commitCsvStudents} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
               Commit Students List
             </Button>
             <Button variant="outline" onClick={() => setStudentsModalOpen(false)}>
@@ -1849,8 +2569,8 @@ export default function SuperAdminDashboardPage() {
             {filteredSubTopics
               .filter(
                 (sub) =>
-                  sub.title.toLowerCase().includes(subTopicFilter.toLowerCase()) ||
-                  sub.description.toLowerCase().includes(subTopicFilter.toLowerCase())
+                  (sub.title || '').toLowerCase().includes(subTopicFilter.toLowerCase()) ||
+                  (sub.description || '').toLowerCase().includes(subTopicFilter.toLowerCase())
               )
               .map((sub) => (
                 <div
@@ -1878,8 +2598,8 @@ export default function SuperAdminDashboardPage() {
               ))}
             {filteredSubTopics.filter(
               (sub) =>
-                sub.title.toLowerCase().includes(subTopicFilter.toLowerCase()) ||
-                sub.description.toLowerCase().includes(subTopicFilter.toLowerCase())
+                (sub.title || '').toLowerCase().includes(subTopicFilter.toLowerCase()) ||
+                (sub.description || '').toLowerCase().includes(subTopicFilter.toLowerCase())
             ).length === 0 && (
               <div className="text-center p-8 text-slate-400 text-xs">
                 No subtopics discovered matching filter parameters.
@@ -1931,11 +2651,34 @@ export default function SuperAdminDashboardPage() {
             className="space-y-4"
             onSubmit={async (e) => {
               e.preventDefault();
-              await fetch(`${API_BASE}/question/update/${editingQuestion.question_id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(editingQuestion),
-              });
+              try {
+                const res = await fetch(`${API_BASE}/question/sub-topics-with-questions/${editingQuestion.question_id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(editingQuestion),
+                });
+                const result = await res.json();
+                if (result.success) {
+                  setActiveSubTopicQuestions((prevQuestions) =>
+                    prevQuestions.map((q) =>
+                      q.question_id === editingQuestion.question_id ? { ...q, ...editingQuestion } : q
+                    )
+                  );
+                  setSubTopicsWithQuestions((prevSubTopics) =>
+                    prevSubTopics.map((st) => ({
+                      ...st,
+                      questions: st.questions.map((q) =>
+                        q.question_id === editingQuestion.question_id ? { ...q, ...editingQuestion } : q
+                      ),
+                    }))
+                  );
+                  alert("Question updated successfully.");
+                } else {
+                  alert(result.error || "Failed to update question.");
+                }
+              } catch (err: any) {
+                alert("Error updating question: " + err.message);
+              }
               setEditingQuestion(null);
             }}
           >
@@ -2000,7 +2743,7 @@ export default function SuperAdminDashboardPage() {
               </select>
             </div>
             <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-              <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+              <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
                 Save Changes
               </Button>
               <Button type="button" variant="outline" onClick={() => setEditingQuestion(null)}>
@@ -2011,119 +2754,159 @@ export default function SuperAdminDashboardPage() {
         )}
       </Modal>
 
-      {/* Create Test wizard modal */}
-      <Modal open={testWizardOpen} title={`Test Creation Panel: Step ${testStep}/3`} onClose={() => setTestWizardOpen(false)}>
-        <div className="space-y-4">
-          {testStep === 1 && (
-            <div className="space-y-4">
-              <div className="bg-orange-50 text-orange-600 border border-orange-100 p-3.5 rounded-lg text-xs font-semibold flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" /> Fill in the basic parameters to initialize the scheduled test.
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Test Title</label>
-                <input
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                  placeholder="e.g. Computer Science Term Final"
-                  value={testDraft.title}
-                  onChange={(e) => setTestDraft((t: any) => ({ ...t, title: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Target Department</label>
+      {/* Create Test modal */}
+      <Modal open={testWizardOpen} title="Create New Test" onClose={() => setTestWizardOpen(false)}>
+        <div className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
+          <div className="bg-purple-50 text-purple-700 border border-purple-100 p-3.5 rounded-lg text-xs font-semibold flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" /> Choose the faculty member and enter the test details. Selecting a faculty member dynamically loads their specific topic and sub-topic options.
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Faculty selection */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Faculty Member *</label>
+              <select
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                value={testDraft.facultyId}
+                onChange={async (e) => {
+                  const fac = faculty.find((f: any) => f.id.toString() === e.target.value);
+                  setTestDraft((t: any) => ({ ...t, facultyId: e.target.value, facultyName: fac?.name || "", topicId: "", subTopicId: "", numQuestions: "" }));
+                  setWizardSubTopics([]);
+                  setWizardQuestionCount(0);
+                  await fetchFacultyTopics(e.target.value);
+                }}
+              >
+                <option value="">— Select Faculty —</option>
+                {faculty.map((f: any) => (
+                  <option key={f.id} value={f.id}>{f.name} ({f.department || "—"})</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Topic selection */}
+            {testDraft.facultyId && (
+              <div className="sm:col-span-2 animate-in slide-in-from-top-2 duration-200">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select Topic *</label>
                 <select
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                  value={testDraft.department}
-                  onChange={(e) => setTestDraft((t: any) => ({ ...t, department: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  value={testDraft.topicId}
+                  onChange={(e) => {
+                    const topic = wizardFacultyTopics.find((t: any) => t.id.toString() === e.target.value);
+                    setWizardSubTopics(topic?.subtopics || []);
+                    setWizardQuestionCount(0);
+                    setTestDraft((t: any) => ({ ...t, topicId: e.target.value, subTopicId: "", numQuestions: "" }));
+                  }}
                 >
-                  <option value="">Select target...</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.code}>
-                      {d.name}
-                    </option>
+                  <option value="">— Select Topic —</option>
+                  {wizardFacultyTopics.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.title}</option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Scheduled Launch Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                    value={testDraft.scheduledFor}
-                    onChange={(e) => setTestDraft((t: any) => ({ ...t, scheduledFor: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Duration (Minutes)</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                    value={testDraft.duration}
-                    onChange={(e) => setTestDraft((t: any) => ({ ...t, duration: parseInt(e.target.value || "0", 10) }))}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-                <Button onClick={() => setTestStep(2)} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-                  Next: Add Questions
-                </Button>
-                <Button variant="outline" onClick={() => setTestWizardOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
+            )}
 
-          {testStep === 2 && (
-            <div className="space-y-4">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Select Questions from Bank (Selected: {testDraft.questions.length})
+            {/* Subtopic selection */}
+            {testDraft.topicId && (
+              <div className="sm:col-span-2 animate-in slide-in-from-top-2 duration-200">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select Sub-Topic *</label>
+                <select
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  value={testDraft.subTopicId}
+                  onChange={(e) => {
+                    const sub = wizardSubTopics.find((s: any) => s.id.toString() === e.target.value);
+                    setWizardQuestionCount(sub?.question_count || 0);
+                    setTestDraft((t: any) => ({ ...t, subTopicId: e.target.value, numQuestions: "" }));
+                  }}
+                >
+                  <option value="">— Select Sub-Topic —</option>
+                  {wizardSubTopics.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.title} ({s.question_count} questions)</option>
+                  ))}
+                </select>
               </div>
-              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto pr-1">
-                {questions.map((q) => (
-                  <div key={q.id} className="p-3 border border-slate-150 rounded-xl flex justify-between items-center bg-white hover:bg-slate-50">
-                    <div className="text-sm font-semibold text-slate-800 pr-4">{q.text}</div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => addQuestionToTest(q)}
-                      className="text-xs shrink-0 border-cyan-200 text-cyan-600 hover:bg-cyan-50"
-                    >
-                      Add to test
-                    </Button>
-                  </div>
+            )}
+
+            {/* Question count input */}
+            {testDraft.subTopicId && (
+              <div className="sm:col-span-2 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                <div className="bg-cyan-50 border border-cyan-100 rounded-lg p-3 text-xs text-cyan-700 font-semibold">
+                  📋 {wizardQuestionCount} questions available in this sub-topic
+                </div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Number of Questions *</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={wizardQuestionCount}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  placeholder={`Max ${wizardQuestionCount} questions`}
+                  value={testDraft.numQuestions}
+                  onChange={(e) => setTestDraft((t: any) => ({ ...t, numQuestions: e.target.value }))}
+                />
+              </div>
+            )}
+
+            {/* Test parameters */}
+            <div className="sm:col-span-2 border-t border-slate-100 pt-3 mt-1">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Test Title *</label>
+              <input
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                placeholder="e.g. Term final final exam"
+                value={testDraft.title}
+                onChange={(e) => setTestDraft((t: any) => ({ ...t, title: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Subject *</label>
+              <input
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                placeholder="e.g. Core Java Programming"
+                value={testDraft.subject}
+                onChange={(e) => setTestDraft((t: any) => ({ ...t, subject: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Target Department *</label>
+              <select
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                value={testDraft.department}
+                onChange={(e) => setTestDraft((t: any) => ({ ...t, department: e.target.value }))}
+              >
+                <option value="">Select department...</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.code}>{d.name}</option>
                 ))}
-              </div>
-              <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-                <Button onClick={() => setTestStep(3)} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-                  Next: Review & Schedule
-                </Button>
-                <Button variant="outline" onClick={() => setTestStep(1)}>
-                  Back
-                </Button>
-              </div>
+              </select>
             </div>
-          )}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Scheduled Date & Time *</label>
+              <input
+                type="datetime-local"
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                value={testDraft.scheduledFor}
+                onChange={(e) => setTestDraft((t: any) => ({ ...t, scheduledFor: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Duration (Minutes) *</label>
+              <input
+                type="number"
+                min="1"
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                value={testDraft.duration}
+                onChange={(e) => setTestDraft((t: any) => ({ ...t, duration: parseInt(e.target.value || "0", 10) }))}
+              />
+            </div>
+          </div>
 
-          {testStep === 3 && (
-            <div className="space-y-4">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Review Roster Configuration</div>
-              <div className="bg-slate-50 p-4 rounded-xl space-y-2 border border-slate-100">
-                <div className="text-sm">Test Title: <span className="font-bold text-slate-800">{testDraft.title}</span></div>
-                <div className="text-sm">Department: <span className="font-semibold text-slate-800">{testDraft.department}</span></div>
-                <div className="text-sm">Scheduled Date & Time: <span className="text-slate-800 font-semibold">{testDraft.scheduledFor}</span></div>
-                <div className="text-sm">Roster Questions count: <span className="font-bold text-cyan-600">{testDraft.questions.length} questions</span></div>
-              </div>
-              <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-                <Button onClick={publishTest} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-                  Publish Test
-                </Button>
-                <Button variant="outline" onClick={() => setTestStep(2)}>
-                  Back
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-3">
+            <Button
+              onClick={publishTest}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold flex items-center gap-1.5"
+            >
+              🚀 Publish & Schedule Test
+            </Button>
+            <Button variant="outline" onClick={() => setTestWizardOpen(false)}>Cancel</Button>
+          </div>
         </div>
       </Modal>
     </div>
@@ -2147,7 +2930,7 @@ function SidebarLink({
       onClick={onClick}
       className={`w-full flex items-center gap-3.5 py-3 px-4 rounded-xl text-left text-sm transition-all duration-200 font-semibold ${
         active
-          ? "bg-orange-500 text-white shadow-md shadow-orange-500/10 scale-[1.01]"
+          ? "bg-purple-600 text-white shadow-md shadow-purple-600/10 scale-[1.01]"
           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
       }`}
     >
@@ -2169,7 +2952,7 @@ function MetricCard({
   title: string;
   value: string | number;
   icon: React.ReactNode;
-  color: "orange" | "cyan";
+  color: "purple" | "cyan";
 }) {
   return (
     <Card className="border-slate-100 shadow-sm rounded-2xl bg-white hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
@@ -2178,7 +2961,7 @@ function MetricCard({
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{title}</div>
           <div className="text-2xl font-black text-slate-800">{value}</div>
         </div>
-        <div className={`p-3.5 rounded-2xl ${color === "orange" ? "bg-orange-50" : "bg-cyan-50"}`}>
+        <div className={`p-3.5 rounded-2xl ${color === "purple" ? "bg-purple-50" : "bg-cyan-50"}`}>
           {icon}
         </div>
       </CardContent>
@@ -2192,11 +2975,13 @@ function DeptForm({
   onSave,
   onCancel,
   faculties,
+  loading = false,
 }: {
   initial: any;
   onSave: (data: any) => void;
   onCancel: () => void;
   faculties: any[];
+  loading?: boolean;
 }) {
   const [data, setData] = useState(initial || { code: "", name: "", hodId: null });
   useEffect(() => setData(initial || { code: "", name: "", hodId: null }), [initial]);
@@ -2237,10 +3022,10 @@ function DeptForm({
         </select>
       </div>
       <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-        <Button onClick={() => onSave(data)} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-          Save Department
+        <Button disabled={loading} onClick={() => onSave(data)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
+          {loading ? "Saving..." : "Save Department"}
         </Button>
-        <Button variant="outline" onClick={onCancel}>
+        <Button disabled={loading} variant="outline" onClick={onCancel}>
           Cancel
         </Button>
       </div>
@@ -2268,7 +3053,7 @@ function FacultyForm({
       <div>
         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Roll / Identity Number</label>
         <input
-          value={data.roll}
+          value={data.roll || ""}
           onChange={(e) => setData((d: any) => ({ ...d, roll: e.target.value }))}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
           placeholder="e.g. ST1029"
@@ -2277,7 +3062,7 @@ function FacultyForm({
       <div>
         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Faculty Name</label>
         <input
-          value={data.name}
+          value={data.name || ""}
           onChange={(e) => setData((d: any) => ({ ...d, name: e.target.value }))}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
           placeholder="Enter name..."
@@ -2286,7 +3071,7 @@ function FacultyForm({
       <div>
         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Email Address</label>
         <input
-          value={data.email}
+          value={data.email || ""}
           onChange={(e) => setData((d: any) => ({ ...d, email: e.target.value }))}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
           placeholder="email@nscet.edu"
@@ -2295,7 +3080,7 @@ function FacultyForm({
       <div>
         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Department Assignment</label>
         <select
-          value={data.department}
+          value={data.department || ""}
           onChange={(e) => setData((d: any) => ({ ...d, department: e.target.value }))}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
         >
@@ -2308,7 +3093,7 @@ function FacultyForm({
         </select>
       </div>
       <div className="flex gap-2 justify-end border-t border-slate-100 pt-4 mt-2">
-        <Button onClick={() => onSave(data)} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+        <Button onClick={() => onSave(data)} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
           Save Faculty
         </Button>
         <Button variant="outline" onClick={onCancel}>
@@ -2409,7 +3194,7 @@ function StudentEditForm({
             }
             setLoading(false);
           }}
-          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+          className="bg-purple-600 hover:bg-purple-700 text-white font-semibold"
         >
           Save Changes
         </Button>
