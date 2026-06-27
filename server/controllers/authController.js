@@ -3,7 +3,7 @@ const JWT_SECRET = process.env.JWT_SECRET || '123';
 const db = require('../config/conn');
 const bcrypt = require('bcryptjs');
 
-// Fetch user details by roll number
+// Fetch user details by roll number or email
 exports.getUserByRollNo = (req, res) => {
   const { rollNo } = req.params;
   db.query(
@@ -11,8 +11,8 @@ exports.getUserByRollNo = (req, res) => {
      FROM users u
      LEFT JOIN departments d ON u.department_id = d.id
      LEFT JOIN roles r ON u.role_id = r.role_id
-     WHERE u.roll_no = ?`,
-    [rollNo],
+     WHERE u.roll_no = ? OR u.email = ?`,
+    [rollNo, rollNo],
     (err, results) => {
       if (err) {
         console.log(err);
@@ -24,32 +24,32 @@ exports.getUserByRollNo = (req, res) => {
   );
 };
 
-// Signup- set password if not already set
+// Signup- set password if not already set (lookup by roll number or email)
 exports.signup = async (req, res) => {
   const { rollNo, password } = req.body;
-  db.query('SELECT password FROM users WHERE roll_no = ?', [rollNo], (err, results) => {
+  db.query('SELECT roll_no, password FROM users WHERE roll_no = ? OR email = ?', [rollNo, rollNo], (err, results) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     if (results.length === 0) return res.status(404).json({ error: 'User not found' });
-    const currentPassword = results[0].password;
-      if (currentPassword && currentPassword.trim() !== '') {
-        return res.status(400).json({ error: 'Password already set for this user' });
-      }
+    const user = results[0];
+    const currentPassword = user.password;
+    if (currentPassword && currentPassword.trim() !== '') {
+      return res.status(400).json({ error: 'Password already set for this user' });
+    }
       
-     
-      bcrypt.genSalt(10, (saltErr, salt) => {
-        if (saltErr) return res.status(500).json({ error: 'Error generating salt' });
-        bcrypt.hash(password, salt, (hashErr, hashedPassword) => {
-          if (hashErr) return res.status(500).json({ error: 'Error hashing password' });
-          db.query('UPDATE users SET password = ? WHERE roll_no = ?', [hashedPassword, rollNo], (err2) => {
-            if (err2) return res.status(500).json({ error: 'DB error' });
-            return res.json({ success: true });
-          });
+    bcrypt.genSalt(10, (saltErr, salt) => {
+      if (saltErr) return res.status(500).json({ error: 'Error generating salt' });
+      bcrypt.hash(password, salt, (hashErr, hashedPassword) => {
+        if (hashErr) return res.status(500).json({ error: 'Error hashing password' });
+        db.query('UPDATE users SET password = ? WHERE roll_no = ?', [hashedPassword, user.roll_no], (err2) => {
+          if (err2) return res.status(500).json({ error: 'DB error' });
+          return res.json({ success: true });
         });
       });
+    });
   });
 };
 
-// Login- fetch role, compare password, return role
+// Login- fetch role, compare password, return role (allow roll number or email)
 exports.login = (req, res) => {
   const { rollNo, password } = req.body;
   db.query(
@@ -57,8 +57,8 @@ exports.login = (req, res) => {
      FROM users u
      LEFT JOIN departments d ON u.department_id = d.id
      LEFT JOIN roles r ON u.role_id = r.role_id
-     WHERE u.roll_no = ?`,
-    [rollNo],
+     WHERE u.roll_no = ? OR u.email = ?`,
+    [rollNo, rollNo],
     (err, results) => {
       if (err) return res.status(500).json({ error: 'Database error' });
       if (results.length === 0) return res.status(404).json({ error: 'User not found' });
