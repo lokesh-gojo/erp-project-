@@ -34,6 +34,7 @@ router.put('/update-faculty/:id', userControllers.updateFaculty);
 
 
 // admin
+router.post('/reset-password-admin', authMiddleware, userControllers.adminResetPassword);
 router.post('/reset-password-admin/:id', userControllers.adminResetPassword);
 
 // HOD Staff Management Routes (protected by authMiddleware)
@@ -57,6 +58,9 @@ router.get('/profile', authMiddleware, userControllers.getProfile);
 
 // Topics with subtopics
 router.get('/topics-with-subtopics', authMiddleware, topicController.getTopicsWithSubTopics);
+
+// Faculty-specific topics for SuperAdmin test wizard
+router.get('/faculty/:facultyId/topics', authMiddleware, topicController.getTopicsForFaculty);
 
 module.exports = router;
 

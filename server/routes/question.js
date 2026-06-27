@@ -14,6 +14,7 @@ router.get('/sub-topics-with-questions', questionController.getSubTopicsWithQues
 router.get('/subtopics/:sub_topic_id/questions', authMiddleware, questionController.getQuestionsBySubTopic);
 
 router.put('/sub-topics-with-questions/:question_id', questionController.updateQuestion); 
+router.put('/update/:question_id', questionController.updateQuestion); 
 
 router.put('/addquestions', questionController.addQuestion);
 
