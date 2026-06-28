@@ -70,6 +70,7 @@ interface Student {
   department: string;
   batch: string;
   email: string;
+  year?: string | number;
 }
 
 interface StudentTest {
@@ -165,6 +166,7 @@ interface QuestionData {
 interface DepartmentData {
   department?: string;
   batch?: string;
+  year?: number | string;
   students: number;
   testsAttended: number;
   avgScore: number;
@@ -220,6 +222,7 @@ const IndividualStudentReport = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentTests, setStudentTests] = useState<StudentTest[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
   const [loading, setLoading] = useState(false);
   const [studentLoading, setStudentLoading] = useState(false);
 
@@ -302,10 +305,12 @@ const IndividualStudentReport = () => {
     exportToCSV(exportData, `${selectedStudent.name}_report`);
   };
 
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.rollNo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.rollNo.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesYear = selectedYear === "all" || String(student.year) === selectedYear;
+    return matchesSearch && matchesYear;
+  });
 
   return (
     <div className="space-y-6">
@@ -330,15 +335,28 @@ const IndividualStudentReport = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name or roll no..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+              <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or roll no..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm outline-none transition duration-200"
+                >
+                  <option value="all">All Years</option>
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
+                </select>
               </div>
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {loading ? (
@@ -357,7 +375,10 @@ const IndividualStudentReport = () => {
                     >
                       <div className="font-medium text-gray-800">{student.name}</div>
                       <div className="text-sm text-gray-600">{student.rollNo}</div>
-                      <div className="text-xs text-gray-500">{student.department}</div>
+                      <div className="text-xs text-gray-500 flex justify-between">
+                        <span>{student.department}</span>
+                        <span>{student.year ? `${student.year} Year` : ''}</span>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -414,7 +435,12 @@ const IndividualStudentReport = () => {
                         <div className="text-sm text-gray-500">Average Score</div>
                         <div className="text-xl font-bold text-green-600">
                           {studentTests.length > 0 ?
-                            Math.round(studentTests.reduce((sum, test) => sum + test.accuracy, 0) / studentTests.length)
+                            Math.round(
+                              studentTests.reduce((sum, test) => {
+                                const accuracy = test.maxScore > 0 ? (test.score / test.maxScore) * 100 : 0;
+                                return sum + accuracy;
+                              }, 0) / studentTests.length
+                            )
                             : 0}%
                         </div>
                       </div>
@@ -430,7 +456,9 @@ const IndividualStudentReport = () => {
                       <div>
                         <div className="text-sm text-gray-500">Best Rank</div>
                         <div className="text-xl font-bold text-blue-600">
-                          #{studentTests.length > 0 ? Math.min(...studentTests.filter(t => t.rank).map(t => t.rank)) : '-'}
+                          {studentTests.filter(t => t.rank).length > 0 
+                            ? `#${Math.min(...studentTests.filter(t => t.rank).map(t => Number(t.rank)))}` 
+                            : '-'}
                         </div>
                       </div>
                     </div>
@@ -439,14 +467,14 @@ const IndividualStudentReport = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <Target className="h-5 w-5 text-orange-600" />
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Target className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
                         <div className="text-sm text-gray-500">Avg Score</div>
-                        <div className="text-xl font-bold text-orange-600">
+                        <div className="text-xl font-bold text-blue-600">
                           {studentTests.length > 0 ?
-                            Math.round(studentTests.reduce((sum, test) => sum + (test.accuracy || 0), 0) / studentTests.length)
+                            (studentTests.reduce((sum, test) => sum + Number(test.score || 0), 0) / studentTests.length).toFixed(1)
                             : 0}
                         </div>
                       </div>
@@ -495,7 +523,9 @@ const IndividualStudentReport = () => {
                                     );
                                   })()}
                                 </td>
-                                <td className="py-3 px-2">{Math.round(test.accuracy || 0)}</td>
+                                <td className="py-3 px-2">
+                                  {test.maxScore > 0 ? Math.round((test.score / test.maxScore) * 100) : 0}%
+                                </td>
                                 <td className="py-3 px-2">{test.timeTaken}/{test.totalTime} min</td>
                                 <td className="py-3 px-2">#{test.rank}/{test.totalStudents}</td>
                                 <td className="py-3 px-2">
@@ -958,7 +988,7 @@ const TestWiseReport = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{Number(testAnalysis.stats.passRate || 0).toFixed(2)}%</div>
+                      <div className="text-2xl font-bold text-blue-600">{Number(testAnalysis.stats.passRate || 0).toFixed(2)}%</div>
                       <div className="text-sm text-gray-500">Pass Rate</div>
                     </div>
                   </CardContent>
@@ -1056,10 +1086,10 @@ const TestWiseReport = () => {
                                 <div className="flex-1 bg-gray-200 rounded-full h-2">
                                   <div
                                     className="bg-blue-600 h-2 rounded-full"
-                                    style={{ width: `${(q.correctAnswers / q.totalAnswers) * 100}%` }}
+                                    style={{ width: `${q.totalAnswers > 0 ? (Number(q.correctAnswers || 0) / Number(q.totalAnswers)) * 100 : 0}%` }}
                                   ></div>
                                 </div>
-                                <span className="text-sm">{Math.round((q.correctAnswers / q.totalAnswers) * 100)}%</span>
+                                <span className="text-sm">{q.totalAnswers > 0 ? Math.round((Number(q.correctAnswers || 0) / Number(q.totalAnswers)) * 100) : 0}%</span>
                               </div>
                             </td>
                             <td className="py-3 px-2">
@@ -1094,17 +1124,40 @@ const TestWiseReport = () => {
   );
 };
 
-// Department/Batch Report Component
-const DepartmentReport = () => {
-  const [departmentData, setDepartmentData] = useState<DepartmentData[]>([]);
+// Year-wise Report Component
+const YearWiseReport = () => {
+  const [yearData, setYearData] = useState<DepartmentData[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>("all");
   const [loading, setLoading] = useState(false);
 
-  // Fetch department data
-  const fetchDepartmentData = async () => {
+  // Fetch departments list
+  useEffect(() => {
+    const fetchDepts = async () => {
+      try {
+        const token = localStorage.getItem('jwt_token');
+        const response = await fetch(`${API_BASE}/dept/departments`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setDepartments(data);
+        }
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+      }
+    };
+    fetchDepts();
+  }, []);
+
+  // Fetch year data
+  const fetchYearData = async (deptId: string = selectedDept) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('jwt_token');
-      const response = await fetch(`${API_BASE}/reports/department-report`, {
+      const response = await fetch(`${API_BASE}/reports/department-report?departmentId=${deptId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -1113,32 +1166,32 @@ const DepartmentReport = () => {
 
       const data = await response.json();
       if (data.success) {
-        setDepartmentData(data.departmentData);
+        setYearData(data.departmentData);
       } else {
-        console.error('Failed to fetch department data:', data.error);
-        setDepartmentData([]);
+        console.error('Failed to fetch year data:', data.error);
+        setYearData([]);
       }
     } catch (error) {
-      console.error('Error fetching department data:', error);
-      setDepartmentData([]);
+      console.error('Error fetching year data:', error);
+      setYearData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Automatically load data when component mounts
+  // Re-load data when selected department changes
   useEffect(() => {
-    fetchDepartmentData();
-  }, []);
+    fetchYearData(selectedDept);
+  }, [selectedDept]);
 
-  const exportDepartmentReport = () => {
-    if (!departmentData || departmentData.length === 0) {
+  const exportYearReport = () => {
+    if (!yearData || yearData.length === 0) {
       alert('No data to export. Please load report first.');
       return;
     }
 
-    const exportData = departmentData.map(item => ({
-      'Department': item.department,
+    const exportData = yearData.map(item => ({
+      'Year': item.year ? `${item.year} Year` : 'Unknown',
       'Total Students': item.students,
       'Tests Attended': item.testsAttended,
       'Average Score': item.avgScore,
@@ -1146,28 +1199,40 @@ const DepartmentReport = () => {
       'Attendance': item.attendance
     }));
 
-    exportToCSV(exportData, `department_report`);
+    exportToCSV(exportData, `year_wise_report`);
   };
 
-  const data = departmentData;
+  const data = yearData;
 
   const handleLoadReport = () => {
-    fetchDepartmentData();
+    fetchYearData(selectedDept);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <BookOpen className="h-6 w-6 text-purple-600" />
-          Department Report
+          Year-wise Performance Report
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={selectedDept}
+            onChange={(e) => setSelectedDept(e.target.value)}
+            className="p-2 border border-gray-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Departments</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.short_name}
+              </option>
+            ))}
+          </select>
           <Button onClick={handleLoadReport} disabled={loading} className="flex items-center gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             {loading ? 'Loading...' : 'Load Report'}
           </Button>
-          <Button onClick={exportDepartmentReport} className="flex items-center gap-2">
+          <Button onClick={exportYearReport} className="flex items-center gap-2">
             <Download className="h-4 w-4" />
             Export Report
           </Button>
@@ -1190,7 +1255,7 @@ const DepartmentReport = () => {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {data.length > 0 ? Math.round(data.reduce((sum, item) => sum + (item.avgScore || 0), 0) / data.length) : 0}
+                {data.length > 0 ? Math.round(data.reduce((sum, item) => sum + Number(item.avgScore || 0), 0) / data.length) : 0}
               </div>
               <div className="text-sm text-gray-500">Overall Average</div>
             </div>
@@ -1199,8 +1264,8 @@ const DepartmentReport = () => {
         <Card>
           <CardContent className="p-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {data.length > 0 ? Math.round(data.reduce((sum, item) => sum + (item.passRate || 0), 0) / data.length) : 0}%
+              <div className="text-2xl font-bold text-blue-600">
+                {data.length > 0 ? Math.round(data.reduce((sum, item) => sum + Number(item.passRate || 0), 0) / data.length) : 0}%
               </div>
               <div className="text-sm text-gray-500">Pass Rate</div>
             </div>
@@ -1210,7 +1275,7 @@ const DepartmentReport = () => {
           <CardContent className="p-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {data.length > 0 ? Math.round(data.reduce((sum, item) => sum + (item.attendance || 0), 0) / data.length) : 0}%
+                {data.length > 0 ? Math.round(data.reduce((sum, item) => sum + Number(item.attendance || 0), 0) / data.length) : 0}%
               </div>
               <div className="text-sm text-gray-500">Attendance</div>
             </div>
@@ -1221,17 +1286,17 @@ const DepartmentReport = () => {
       {/* Detailed Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Department-wise Performance</CardTitle>
+          <CardTitle>Year-wise Performance Summary</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex justify-center items-center py-8">
-              <div className="text-gray-500">Loading department data...</div>
+              <div className="text-gray-500">Loading year data...</div>
             </div>
           ) : data.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <BookOpen className="h-12 w-12 text-gray-300 mb-4" />
-              <p className="text-gray-600 font-medium">No department data available</p>
+              <p className="text-gray-600 font-medium">No year data available</p>
               <p className="text-sm text-gray-500">Data will be populated after students complete tests</p>
             </div>
           ) : (
@@ -1239,7 +1304,7 @@ const DepartmentReport = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-2">Department</th>
+                    <th className="text-left py-3 px-2">Year</th>
                     <th className="text-left py-3 px-2">Total Students</th>
                     <th className="text-left py-3 px-2">Tests Attended</th>
                     <th className="text-left py-3 px-2">Average Score</th>
@@ -1251,7 +1316,7 @@ const DepartmentReport = () => {
                 <tbody>
                   {data.map((item, index) => (
                     <tr key={index} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-2 font-medium">{item.department}</td>
+                      <td className="py-3 px-2 font-medium">{item.year ? `${item.year} Year` : 'Unknown'}</td>
                       <td className="py-3 px-2">{item.students}</td>
                       <td className="py-3 px-2">{item.testsAttended}</td>
                       <td className="py-3 px-2">
@@ -1485,8 +1550,8 @@ const QuestionAnalysisReport = () => {
                       {/* Success Rate */}
                       <div className="text-center p-3 bg-green-50 rounded-lg">
                         <div className="text-2xl font-bold text-green-600">
-                          {q.successRate !== undefined ? q.successRate :
-                            q.totalAnswers > 0 ? Math.round((q.correctAnswers / q.totalAnswers) * 100) : 0}%
+                          {q.successRate !== undefined && !isNaN(Number(q.successRate)) ? q.successRate :
+                            q.totalAnswers > 0 ? Math.round((Number(q.correctAnswers || 0) / Number(q.totalAnswers)) * 100) : 0}%
                         </div>
                         <div className="text-sm text-gray-600">Success Rate</div>
                         <div className="text-xs text-gray-500">
@@ -1657,8 +1722,8 @@ const TestProgressReport = () => {
                     <div className="text-2xl font-bold text-green-600">{test.submitted}</div>
                     <div className="text-sm text-gray-600">Submitted</div>
                   </div>
-                  <div className="text-center p-3 bg-orange-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">{test.inProgress}</div>
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{test.inProgress}</div>
                     <div className="text-sm text-gray-600">In Progress</div>
                   </div>
                   <div className="text-center p-3 bg-red-50 rounded-lg">
@@ -1671,17 +1736,17 @@ const TestProgressReport = () => {
                 <div className="mb-6">
                   <div className="flex justify-between text-sm text-gray-600 mb-2">
                     <span>Overall Progress</span>
-                    <span>{Math.round(((test.submitted + test.inProgress) / test.totalStudents) * 100)}%</span>
+                    <span>{test.totalStudents > 0 ? Math.round(((test.submitted + test.inProgress) / test.totalStudents) * 100) : 0}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div className="flex h-3 rounded-full overflow-hidden">
                       <div
                         className="bg-green-500"
-                        style={{ width: `${(test.submitted / test.totalStudents) * 100}%` }}
+                        style={{ width: `${test.totalStudents > 0 ? (test.submitted / test.totalStudents) * 100 : 0}%` }}
                       ></div>
                       <div
-                        className="bg-orange-500"
-                        style={{ width: `${(test.inProgress / test.totalStudents) * 100}%` }}
+                        className="bg-blue-500"
+                        style={{ width: `${test.totalStudents > 0 ? (test.inProgress / test.totalStudents) * 100 : 0}%` }}
                       ></div>
                     </div>
                   </div>
@@ -1696,21 +1761,21 @@ const TestProgressReport = () => {
                 {test.studentsInProgress.length > 0 && (
                   <div>
                     <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
+                       <Clock className="h-4 w-4" />
                       Students Currently Taking Test
                     </h4>
                     <div className="space-y-2">
                       {test.studentsInProgress.map((student, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                             <span className="font-medium">{student.name}</span>
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-sm text-gray-600">
                               Progress: {student.progress}%
                             </div>
-                            <div className="text-sm font-medium text-orange-600">
+                            <div className="text-sm font-medium text-blue-600">
                               {student.timeLeft} min left
                             </div>
                           </div>
@@ -1744,7 +1809,7 @@ export function ReportsSectionUI() {
   const reportTabs = [
     { id: "individual", label: "Individual Student", icon: Users, component: IndividualStudentReport },
     { id: "testwise", label: "Test-wise", icon: BarChart3, component: TestWiseReport },
-    { id: "department", label: "Department", icon: BookOpen, component: DepartmentReport },
+    { id: "yearwise", label: "Year-wise", icon: BookOpen, component: YearWiseReport },
     { id: "question", label: "Question Analysis", icon: PieChart, component: QuestionAnalysisReport },
     { id: "progress", label: "Test Progress", icon: Activity, component: TestProgressReport }
   ];
@@ -1755,13 +1820,13 @@ export function ReportsSectionUI() {
     <div className="space-y-6">
       {/* Report Navigation */}
       <div className="border-b px-2">
-        <nav className="flex space-x-8 overflow-x-auto">
+        <nav className="flex space-x-8 overflow-x-auto pb-1 scrollbar-thin">
           {reportTabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveReport(id)}
               className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${activeReport === id
-                ? 'border-orange-500 text-orange-600'
+                ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
