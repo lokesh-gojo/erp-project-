@@ -66,7 +66,7 @@ const QuestionModal = ({ isOpen, onClose, question, onSave, title, isEditing = f
             <textarea
               value={formData.text}
               onChange={(e) => handleChange('text', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+              className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
               rows={3}
               required
               placeholder="Enter your question here..."
@@ -91,7 +91,7 @@ const QuestionModal = ({ isOpen, onClose, question, onSave, title, isEditing = f
                   type="text"
                   value={formData[option.toLowerCase()]}
                   onChange={(e) => handleChange(option.toLowerCase(), e.target.value)}
-                  className={`flex-1 p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 ${formData.correct === option ? 'bg-green-50 border-green-300' : ''}`}
+                  className={`flex-1 p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 ${formData.correct === option ? 'bg-green-50 border-green-300' : ''}`}
                   required
                   placeholder={`Option ${option} text`}
                 />
@@ -105,7 +105,7 @@ const QuestionModal = ({ isOpen, onClose, question, onSave, title, isEditing = f
               type="number"
               value={formData.marks}
               onChange={(e) => handleChange('marks', parseInt(e.target.value) || 1)}
-              className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+              className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
               min="1"
               required
               placeholder="Enter marks for this question"
@@ -122,7 +122,7 @@ const QuestionModal = ({ isOpen, onClose, question, onSave, title, isEditing = f
             </button>
             <button
               type="submit"
-              className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500 text-white rounded-2xl shadow-lg font-semibold transition duration-200"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-2xl shadow-lg font-semibold transition duration-200"
             >
               {isEditing ? 'Update Question' : 'Add Question'}
             </button>
@@ -358,10 +358,10 @@ const UploadQuestionsWithPreview = ({ selectedTopic, selectedSubtopic, onClose, 
     <div className="space-y-6">
       <div className="mb-6">
         <p className="text-gray-600">
-          Selected Sub-topic: <span className="font-semibold text-orange-600">{selectedSubtopic?.title}</span>
+          Selected Sub-topic: <span className="font-semibold text-blue-600">{selectedSubtopic?.title}</span>
         </p>
         <p className="text-gray-600">
-          Topic: <span className="font-semibold text-orange-600">{selectedTopic?.title}</span>
+          Topic: <span className="font-semibold text-blue-600">{selectedTopic?.title}</span>
         </p>
       </div>
 
@@ -376,7 +376,7 @@ const UploadQuestionsWithPreview = ({ selectedTopic, selectedSubtopic, onClose, 
               id="questionsFile"
               accept=".csv,.xlsx,.xls"
               onChange={handleFileChange}
-              className="p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none w-full transition duration-200 cursor-pointer"
+              className="p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-full transition duration-200 cursor-pointer"
             />
             <p className="text-sm text-gray-500 mt-2">
               Supported formats: CSV or Excel spreadsheet (.xlsx, .xls). You can open/edit files in Excel or any spreadsheet app.<br />
@@ -438,7 +438,7 @@ const UploadQuestionsWithPreview = ({ selectedTopic, selectedSubtopic, onClose, 
                             updatedQuestions[index].marks = parseInt(e.target.value) || 1;
                             setPreviewQuestions(updatedQuestions);
                           }}
-                          className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none"
+                          className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                           min="1"
                         />
                       </div>
@@ -502,7 +502,7 @@ const UploadQuestionsWithPreview = ({ selectedTopic, selectedSubtopic, onClose, 
             <button
               onClick={handleUpload}
               disabled={uploading || previewQuestions.length === 0}
-              className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500 text-white rounded-2xl shadow-lg font-semibold transition duration-200 disabled:opacity-50"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-2xl shadow-lg font-semibold transition duration-200 disabled:opacity-50"
             >
               {uploading ? 'Uploading...' : `🚀 Upload ${previewQuestions.length} Questions`}
             </button>
@@ -745,10 +745,10 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
           <ul className="space-y-2">
             {topics.map(topic => (
               <li key={topic.id}>
-                <div className={`flex items-center gap-2 w-full px-4 rounded-lg hover:bg-orange-100 transition duration-200 ${selectedTopicId === topic.id ? 'bg-orange-200' : ''}`}>
+                <div className={`flex items-center gap-2 w-full px-4 rounded-lg hover:bg-blue-50 transition duration-200 ${selectedTopicId === topic.id ? 'bg-blue-100' : ''}`}>
                   <button
                     onClick={(e) => toggleTopicSelection(e, topic.id)}
-                    className={`p-1 rounded-md transition duration-200 ${selectedTopicIds.includes(topic.id) ? 'text-orange-600' : 'text-gray-400'}`}
+                    className={`p-1 rounded-md transition duration-200 ${selectedTopicIds.includes(topic.id) ? 'text-blue-600' : 'text-gray-400'}`}
                   >
                     {selectedTopicIds.includes(topic.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
                   </button>
@@ -803,10 +803,10 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
             <ul className="space-y-2">
               {selectedTopic.subtopics.map(sub => (
                 <li key={sub.id}>
-                  <div className={`flex items-center p-2 rounded-lg hover:bg-orange-100 transition duration-200 ${selectedSubtopicId === sub.id ? 'bg-orange-200' : ''}`}>
+                  <div className={`flex items-center p-2 rounded-lg hover:bg-blue-50 transition duration-200 ${selectedSubtopicId === sub.id ? 'bg-blue-100' : ''}`}>
                     <button
                       onClick={(e) => toggleSubtopicSelection(e, sub.id)}
-                      className={`p-1 mr-2 rounded-md transition duration-200 ${selectedSubtopicIds.includes(sub.id) ? 'text-orange-600' : 'text-gray-400'}`}
+                      className={`p-1 mr-2 rounded-md transition duration-200 ${selectedSubtopicIds.includes(sub.id) ? 'text-blue-600' : 'text-gray-400'}`}
                     >
                       {selectedSubtopicIds.includes(sub.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
                     </button>
@@ -824,7 +824,7 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
                       </div>
                       <button
                         onClick={() => handleViewQuestions(sub)}
-                        className="text-orange-500 hover:text-orange-700 p-2"
+                        className="text-blue-500 hover:text-blue-700 p-2"
                         title="View Questions"
                       >
                         📄
@@ -849,13 +849,13 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
             <div>
               <h3 className="text-lg font-semibold text-gray-800">Manage Questions</h3>
               <p className="text-gray-600">
-                Topic: <span className="font-medium text-orange-600">{selectedTopic?.title}</span> →
-                Subtopic: <span className="font-medium text-orange-600">{selectedSubtopic?.title}</span>
+                Topic: <span className="font-medium text-blue-600">{selectedTopic?.title}</span> →
+                Subtopic: <span className="font-medium text-blue-600">{selectedSubtopic?.title}</span>
               </p>
             </div>
             <button
               onClick={() => setShowUploadModal(true)}
-              className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500 text-white rounded-2xl shadow-lg font-semibold transition duration-200 flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-2xl shadow-lg font-semibold transition duration-200 flex items-center gap-2"
             >
               📤 Upload Questions
             </button>
@@ -925,7 +925,7 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
                             {index + 1}. {question.text}
                           </h4>
                         </div>
-                        <div className="ml-4 bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">
+                        <div className="ml-4 bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                           {question.marks || 1} mark{(question.marks || 1) !== 1 ? 's' : ''}
                         </div>
                       </div>
