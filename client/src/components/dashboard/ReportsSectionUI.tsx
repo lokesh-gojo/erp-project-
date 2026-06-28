@@ -197,18 +197,16 @@ interface QuestionAnalysisTest {
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 const CollegeHeader = () => (
-  <div className="bg-white p-6 border-b-2 border-orange-500 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 rounded-t-xl">
+  <div className="bg-white p-6 border-b-2 border-[#1a365d] mb-8 flex flex-col md:flex-row items-center justify-between gap-4 rounded-t-xl">
     <div className="flex-shrink-0">
       <img src={college_logo} alt="College Logo" className="h-20 w-auto" />
     </div>
     <div className="text-center flex-grow px-4">
-      <h4 className="text-[10px] md:text-xs font-semibold tracking-widest text-gray-500 uppercase mb-1">THENI MELAPETTAI HINDU NADARGAL URAVINMURAI</h4>
-      <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 mb-1">NADAR SARASWATHI COLLEGE OF ENGINEERING & TECHNOLOGY</h1>
-      <div className="space-y-0.5 text-[9px] md:text-[11px] text-gray-600 font-medium">
-        <p>Approved by AICTE, New Delhi & Affiliated to Anna University, Chennai</p>
-        <p>Accredited by NAAC with "A" Grade | An ISO 9001:2015 Certified Institution</p>
-        <p>Vadapudupatti, Annanji (po), Theni - 625 531</p>
-      </div>
+      <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-[#1a365d] mb-1">Easa College of Engineering and Technology</h1>
+      <p className="text-xs md:text-sm text-gray-600 font-medium max-w-2xl mx-auto mb-1">
+        Navakkarai (p.o), NH - 47, Palakkad Main Road, Coimbatore, Tamil Nadu - 641105
+      </p>
+      <h3 className="text-sm md:text-base font-semibold text-[#1a365d]">Department of ECE</h3>
     </div>
     <div className="hidden md:flex flex-shrink-0 items-center justify-center">
       <img src={naac_logo} alt="NAAC Logo" className="h-20 w-auto" />
@@ -651,48 +649,43 @@ const TestWiseReport = () => {
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 55, 'F');
 
-    // Row 1: Trust name (centered, full width) - y=8
-    doc.setTextColor(100, 100, 100);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.text('THENI MELAPETTAI HINDU NADARGAL URAVINMURAI', 105, 8, { align: 'center' });
-
-    // Row 2: College name (centered, full width, large bold) - y=16
-    doc.setTextColor(33, 47, 61);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('NADAR SARASWATHI COLLEGE OF ENGINEERING & TECHNOLOGY', 105, 16, { align: 'center' });
-
-    // Row 3-5: Logos on sides, sub-text centered between them
     // College logo on the left
-    const logoW = 25;
-    const logoH = 25;
     if (collegeLogoData) {
-      doc.addImage(collegeLogoData, 'PNG', 15, 19, logoW, logoH);
+      doc.addImage(collegeLogoData, 'PNG', 15, 12, 25, 25);
     }
 
-    // Sub-text lines centered in the middle (between the two logos)
-    doc.setTextColor(80, 80, 80);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Approved by AICTE, New Delhi & Affiliated to Anna University, Chennai', 105, 23, { align: 'center' });
-    doc.text('Accredited by NAAC with "A" Grade | An ISO 9001:2015 Certified Institution', 105, 27, { align: 'center' });
-    doc.text('Vadapudupatti, Annanji (po), Theni - 625 531', 105, 31, { align: 'center' });
+    // Row 1: College name
+    doc.setTextColor(26, 54, 93);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Easa College of Engineering and Technology', 105, 18, { align: 'center' });
 
-    // "TEST ANALYSIS REPORT" in orange
+    // Row 2: Address
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Navakkarai (p.o), NH - 47, Palakkad Main Road, Coimbatore, Tamil Nadu - 641105', 105, 24, { align: 'center' });
+
+    // Row 3: Department
+    doc.setTextColor(26, 54, 93);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Department of ECE', 105, 30, { align: 'center' });
+
+    // "TEST ANALYSIS REPORT" in navy blue
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 140, 0);
-    doc.text('TEST ANALYSIS REPORT', 105, 38, { align: 'center' });
+    doc.setTextColor(26, 54, 93);
+    doc.text('TEST ANALYSIS REPORT', 105, 37, { align: 'center' });
 
-    // Orange separator line
-    doc.setDrawColor(255, 140, 0);
+    // Navy Blue separator line
+    doc.setDrawColor(26, 54, 93);
     doc.setLineWidth(0.7);
-    doc.line(15, 42, 195, 42);
+    doc.line(15, 41, 195, 41);
 
     // NAAC logo on the right
     if (naacLogoData) {
-      doc.addImage(naacLogoData, 'PNG', 172, 20, 20, 20);
+      doc.addImage(naacLogoData, 'PNG', 172, 14, 20, 20);
     }
 
     // Test info below the separator line
@@ -730,7 +723,7 @@ const TestWiseReport = () => {
     drawStatBox(15, 'Average Percentage', `${stats.avgPercentage}%`, [33, 47, 61]);
     drawStatBox(65, 'Highest Score', `${stats.highestScore}`, [40, 167, 69]);
     drawStatBox(115, 'Lowest Score', `${stats.lowestScore}`, [220, 53, 69]);
-    drawStatBox(165, 'Pass Rate', `${stats.passRate}%`, [255, 140, 0]);
+    drawStatBox(165, 'Pass Rate', `${stats.passRate}%`, [26, 54, 93]);
 
     // 3. Attendance Summary Text
     const attendanceY = 96;
@@ -742,9 +735,9 @@ const TestWiseReport = () => {
 
     // 4. Top Performers Section
     const performersY = 104;
-    doc.setFillColor(255, 140, 0); // Orange
+    doc.setFillColor(26, 54, 93); // Navy Blue
     doc.rect(15, performersY, 4, 4, 'F');
-    doc.setTextColor(255, 140, 0);
+    doc.setTextColor(26, 54, 93);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text('Top Performers', 22, performersY + 3.5);
@@ -757,7 +750,7 @@ const TestWiseReport = () => {
         s.name,
         `${s.score} / ${testInfo.totalQuestions}`
       ]),
-      headStyles: { fillColor: [255, 140, 0], textColor: [255, 255, 255] },
+      headStyles: { fillColor: [26, 54, 93], textColor: [255, 255, 255] },
       margin: { left: 15, right: 15 },
       styles: { fontSize: 9 },
       columnStyles: {
@@ -839,7 +832,7 @@ const TestWiseReport = () => {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.line(15, newPageSignatureY, 75, newPageSignatureY);
-      doc.text('Department Coordinator', 15, newPageSignatureY + 6);
+      doc.text('Department Advisior', 15, newPageSignatureY + 6);
       doc.line(135, newPageSignatureY, 195, newPageSignatureY);
       doc.text('Head Of The Department', 195, newPageSignatureY + 6, { align: 'right' });
     } else {
@@ -864,13 +857,13 @@ const TestWiseReport = () => {
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setDrawColor(255, 140, 0);
+      doc.setDrawColor(26, 54, 93);
       doc.setLineWidth(0.2);
       doc.line(15, 282, 195, 282);
       doc.setTextColor(150, 150, 150);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
-      doc.text('Developed by Innovative Software Product Industry of NSCET', 105, 288, { align: 'center' });
+      doc.text('Developed by Thichana Moorthy IV Year ECE of EASA', 105, 288, { align: 'center' });
       doc.text(`Page ${i} of ${pageCount}`, 195, 288, { align: 'right' });
     }
 
