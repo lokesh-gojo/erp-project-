@@ -1091,19 +1091,17 @@ export default function SuperAdminDashboardPage() {
     // Header
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 55, "F");
-    doc.setTextColor(100, 100, 100); doc.setFontSize(7); doc.setFont("helvetica", "normal");
-    doc.text("THENI MELAPETTAI HINDU NADARGAL URAVINMURAI", 105, 8, { align: "center" });
-    doc.setTextColor(33, 47, 61); doc.setFontSize(14); doc.setFont("helvetica", "bold");
-    doc.text("NADAR SARASWATHI COLLEGE OF ENGINEERING & TECHNOLOGY", 105, 16, { align: "center" });
-    if (collegeLogoData) doc.addImage(collegeLogoData, "PNG", 15, 19, 25, 25);
-    doc.setTextColor(80, 80, 80); doc.setFontSize(7); doc.setFont("helvetica", "normal");
-    doc.text("Approved by AICTE, New Delhi & Affiliated to Anna University, Chennai", 105, 23, { align: "center" });
-    doc.text("Accredited by NAAC with \"A\" Grade | An ISO 9001:2015 Certified Institution", 105, 27, { align: "center" });
-    doc.text("Vadapudupatti, Annanji (po), Theni - 625 531", 105, 31, { align: "center" });
-    doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 140, 0);
-    doc.text("TEST ANALYSIS REPORT", 105, 38, { align: "center" });
-    doc.setDrawColor(255, 140, 0); doc.setLineWidth(0.7); doc.line(15, 42, 195, 42);
-    if (naacLogoData) doc.addImage(naacLogoData, "PNG", 172, 20, 20, 20);
+    if (collegeLogoData) doc.addImage(collegeLogoData, "PNG", 15, 12, 25, 25);
+    doc.setTextColor(26, 54, 93); doc.setFontSize(14); doc.setFont("helvetica", "bold");
+    doc.text("Easa College of Engineering and Technology", 105, 18, { align: "center" });
+    doc.setTextColor(80, 80, 80); doc.setFontSize(8); doc.setFont("helvetica", "normal");
+    doc.text("Navakkarai (p.o), NH - 47, Palakkad Main Road, Coimbatore, Tamil Nadu - 641105", 105, 24, { align: "center" });
+    doc.setTextColor(26, 54, 93); doc.setFontSize(10); doc.setFont("helvetica", "bold");
+    doc.text("Department of ECE", 105, 30, { align: "center" });
+    doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 54, 93);
+    doc.text("TEST ANALYSIS REPORT", 105, 37, { align: "center" });
+    doc.setDrawColor(26, 54, 93); doc.setLineWidth(0.7); doc.line(15, 41, 195, 41);
+    if (naacLogoData) doc.addImage(naacLogoData, "PNG", 172, 14, 20, 20);
     doc.setTextColor(0, 0, 0); doc.setFontSize(10); doc.setFont("helvetica", "bold");
     doc.text(testInfo?.title || selectedTest.title, 15, 48);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9);
@@ -1122,7 +1120,7 @@ export default function SuperAdminDashboardPage() {
     drawStatBox(15, "Average Percentage", `${stats.avgPercentage}%`, [33, 47, 61]);
     drawStatBox(65, "Highest Score", `${stats.highestScore}`, [40, 167, 69]);
     drawStatBox(115, "Lowest Score", `${stats.lowestScore}`, [220, 53, 69]);
-    drawStatBox(165, "Pass Rate", `${stats.passRate}%`, [255, 140, 0]);
+    drawStatBox(165, "Pass Rate", `${stats.passRate}%`, [26, 54, 93]);
 
     const attendanceY = 96;
     doc.setTextColor(0, 0, 0); doc.setFontSize(10); doc.setFont("helvetica", "bold");
@@ -1131,14 +1129,14 @@ export default function SuperAdminDashboardPage() {
 
     // Top Performers
     const performersY = 104;
-    doc.setFillColor(255, 140, 0); doc.rect(15, performersY, 4, 4, "F");
-    doc.setTextColor(255, 140, 0); doc.setFontSize(14); doc.setFont("helvetica", "bold");
+    doc.setFillColor(26, 54, 93); doc.rect(15, performersY, 4, 4, "F");
+    doc.setTextColor(26, 54, 93); doc.setFontSize(14); doc.setFont("helvetica", "bold");
     doc.text("Top Performers", 22, performersY + 3.5);
     autoTable(doc, {
       startY: performersY + 8,
       head: [["Rank", "Name", "Score"]],
       body: (topPerformers || []).slice(0, 10).map((s: any) => [s.rank || "-", s.name, `${s.score} / ${testInfo?.totalQuestions}`]),
-      headStyles: { fillColor: [255, 140, 0], textColor: [255, 255, 255] },
+      headStyles: { fillColor: [26, 54, 93], textColor: [255, 255, 255] },
       margin: { left: 15, right: 15 }, styles: { fontSize: 9 },
       columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: "auto" }, 2: { cellWidth: 40, halign: "right" } }
     });
@@ -1178,12 +1176,12 @@ export default function SuperAdminDashboardPage() {
     if (lastTableBottom > 250) {
       doc.addPage();
       doc.setTextColor(0,0,0); doc.setFontSize(10); doc.setFont("helvetica", "bold");
-      doc.line(15, 140, 75, 140); doc.text("Department Coordinator", 15, 146);
+      doc.line(15, 140, 75, 140); doc.text("Department Advisior", 15, 146);
       doc.line(135, 140, 195, 140); doc.text("Head Of The Department", 195, 146, { align: "right" });
     } else {
       const signatureLineY = lastTableBottom + (footerLineY - lastTableBottom) / 2;
       doc.setTextColor(0,0,0); doc.setFontSize(10); doc.setFont("helvetica", "bold");
-      doc.line(15, signatureLineY, 75, signatureLineY); doc.text("Department Coordinator", 15, signatureLineY + 6);
+      doc.line(15, signatureLineY, 75, signatureLineY); doc.text("Department Advisior", 15, signatureLineY + 6);
       doc.line(135, signatureLineY, 195, signatureLineY); doc.text("Head Of The Department", 195, signatureLineY + 6, { align: "right" });
     }
 
@@ -1191,9 +1189,9 @@ export default function SuperAdminDashboardPage() {
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setDrawColor(255, 140, 0); doc.setLineWidth(0.2); doc.line(15, 282, 195, 282);
+      doc.setDrawColor(26, 54, 93); doc.setLineWidth(0.2); doc.line(15, 282, 195, 282);
       doc.setTextColor(150, 150, 150); doc.setFontSize(8); doc.setFont("helvetica", "italic");
-      doc.text("Developed by Innovative Software Product Industry of NSCET", 105, 288, { align: "center" });
+      doc.text("Developed by Thichana Moorthy IV Year ECE of EASA", 105, 288, { align: "center" });
       doc.text(`Page ${i} of ${pageCount}`, 195, 288, { align: "right" });
     }
 
