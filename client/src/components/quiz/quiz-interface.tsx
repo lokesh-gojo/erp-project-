@@ -509,8 +509,8 @@ export const QuizInterface = () => {
     return (
       <div className="min-h-screen bg-card-secondary flex items-center justify-center">
         <Card className="w-[500px] max-w-[90vw]">
-          <CardHeader className="text-center bg-orange-50 border-b">
-            <CardTitle className="text-xl text-orange-700 flex items-center justify-center gap-2">
+          <CardHeader className="text-center bg-blue-50 border-b">
+            <CardTitle className="text-xl text-blue-700 flex items-center justify-center gap-2">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
@@ -519,11 +519,11 @@ export const QuizInterface = () => {
           </CardHeader>
           <CardContent className="p-6 text-center">
             <div className="space-y-4">
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <p className="text-orange-800 text-lg font-semibold">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-blue-800 text-lg font-semibold">
                   Warning {securityBreachesCount} of 2
                 </p>
-                <p className="text-orange-700 text-sm mt-2">
+                <p className="text-blue-700 text-sm mt-2">
                   You have violated exam security rules. {securityBreachesCount === 1 ? "One more violation" : "The NEXT violation"} will result in automatic submission.
                 </p>
               </div>
@@ -536,7 +536,7 @@ export const QuizInterface = () => {
 
               <Button
                 onClick={() => setShowBreachWarning(false)}
-                className="w-full bg-orange-600 hover:bg-orange-700"
+                className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 I Understand - Continue Exam
               </Button>
