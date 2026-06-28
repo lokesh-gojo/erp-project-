@@ -795,9 +795,9 @@ const StudentDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <div className='bg-orange-500 p-4 text-center'>
+      <div className='bg-[#1a365d] p-4 text-center'>
         <h2 className='uppercase text-xl text-white'>
-          Developed By <a href="https://www.nscet.org/ispin">Innovative Software Product Industry of NSCET</a>
+          Developed By Thichana Moorthy IV Year ECE of EASA
         </h2>
       </div>
     </div>
