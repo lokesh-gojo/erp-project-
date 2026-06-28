@@ -48,7 +48,7 @@ const TestsSection = ({ tests, loading, error, onEdit, onDelete, onToggleStatus,
   return (
     <div className="space-y-4">
       {tests.map((test) => (
-        <div key={test.test_id} className="flex items-center justify-between p-4 border border-border rounded-lg bg-background">
+        <div key={test.test_id} className="flex flex-col md:flex-row md:items-center justify-between p-4 border border-border rounded-lg bg-background gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <h3 className="font-medium text-foreground">{test.title}</h3>
@@ -61,7 +61,7 @@ const TestsSection = ({ tests, loading, error, onEdit, onDelete, onToggleStatus,
                 {test.is_active ? 'Active' : 'Inactive'}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm text-muted-foreground mb-2">
               <span>Subject: {test.subject}</span>
               {test.topic_title && <span>Topic: {test.topic_title}</span>}
               {test.sub_topic_title && <span>Subtopic: {test.sub_topic_title}</span>}
@@ -71,7 +71,7 @@ const TestsSection = ({ tests, loading, error, onEdit, onDelete, onToggleStatus,
             {test.description && (
               <p className="text-sm text-gray-600 mb-2">{test.description}</p>
             )}
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs text-muted-foreground">
               {test.date && <span>Date: {new Date(test.date).toLocaleDateString()}</span>}
               {test.time_slot && <span>Time: {test.time_slot}</span>}
               {(test.department_name || test.department || test.dept_name || test.dept_short_name) && (
@@ -81,7 +81,7 @@ const TestsSection = ({ tests, loading, error, onEdit, onDelete, onToggleStatus,
               <span>Created: {new Date(test.created_at).toLocaleDateString()}</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full md:w-auto">
             <Button
               size="sm"
               variant="outline"
@@ -1220,12 +1220,12 @@ export const FacultyDashboard = () => {
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Welcome Message */}
         <Card>
-          <CardContent className="p-3 sticky top-0">
-            <div className="flex items-center justify-between">
-              <div className="items-center flex">
+          <CardContent className="p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
                 <h2 className="text-xl font-semibold text-foreground">Welcome back, {profile?.name || "User"}!</h2>
               </div>
-              <nav className="flex gap-4 items-center mb-2">
+              <nav className="flex flex-wrap gap-2 items-center">
                 <Button
                   variant={activeSection === "dashboard" ? "default" : "ghost"}
                   size="sm"
@@ -1352,7 +1352,7 @@ export const FacultyDashboard = () => {
                     if (!open) resetForm();
                   }}>
                     <DialogTrigger asChild>
-                      <Button className="bg-orange-500 text-white hover:bg-orange-600">
+                      <Button className="bg-blue-600 text-white hover:bg-blue-700">
                         <Plus className="h-4 w-4 mr-2" />
                         Create Test
                       </Button>
@@ -1370,7 +1370,7 @@ export const FacultyDashboard = () => {
                               name="topic_id"
                               value={formData.topic_id}
                               onChange={handleTopicChange}
-                              className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                              className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                             >
                               <option value="">--Select Topic (Optional)--</option>
                               {topics.map((topic) => (
@@ -1391,7 +1391,7 @@ export const FacultyDashboard = () => {
                                 name="sub_topic_id"
                                 value={formData.sub_topic_id}
                                 onChange={handleInputChange}
-                                className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                                className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                               >
                                 <option value="">--Select Sub Topic--</option>
                                 {subTopics.map((sub) => (
@@ -1436,7 +1436,7 @@ export const FacultyDashboard = () => {
                             id="title"
                             placeholder="Enter test title"
                             required
-                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                           />
                           {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
                         </div>
@@ -1453,7 +1453,7 @@ export const FacultyDashboard = () => {
                             id="subject"
                             placeholder="Enter subject"
                             required
-                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                           />
                           {errors.subject && <p className="text-red-500 text-sm mt-1">{errors.subject}</p>}
                         </div>
@@ -1468,7 +1468,7 @@ export const FacultyDashboard = () => {
                             value={formData.date}
                             onChange={handleInputChange}
                             id="date"
-                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                           />
                         </div>
                         <div className="flex flex-col md:col-span-1">
@@ -1482,7 +1482,7 @@ export const FacultyDashboard = () => {
                             onChange={handleInputChange}
                             id="time_slot"
                             placeholder="Select time"
-                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                           />
                         </div>
                         <div className="flex flex-col md:col-span-1">
@@ -1498,7 +1498,7 @@ export const FacultyDashboard = () => {
                             placeholder="Enter duration in minutes"
                             required
                             min="1"
-                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                           />
                           {errors.duration_minutes && <p className="text-red-500 text-sm mt-1">{errors.duration_minutes}</p>}
                         </div>
@@ -1522,7 +1522,7 @@ export const FacultyDashboard = () => {
                             required
                             min="1"
                             max={formData.sub_topic_id && questionCount > 0 ? questionCount : undefined}
-                            className={`p-3 md:p-4 border rounded-xl shadow-sm focus:ring-2 focus:border-orange-400 outline-none transition duration-200 w-full ${formData.sub_topic_id && questionCount > 0 && parseInt(formData.num_questions) > questionCount
+                            className={`p-3 md:p-4 border rounded-xl shadow-sm focus:ring-2 focus:border-blue-500 outline-none transition duration-200 w-full ${formData.sub_topic_id && questionCount > 0 && parseInt(formData.num_questions) > questionCount
                               ? 'border-red-500 focus:ring-red-400'
                               : 'border-gray-300 focus:ring-orange-400'
                               }`}
@@ -1559,7 +1559,7 @@ export const FacultyDashboard = () => {
                                 name="year"
                                 value={formData.year}
                                 onChange={handleInputChange}
-                                className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                                className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                               >
                                 <option value="">--Select Year--</option>
                                 <option value="1">1st Year</option>
@@ -1577,7 +1577,7 @@ export const FacultyDashboard = () => {
                                 name="department_id"
                                 value={formData.department_id}
                                 onChange={handleInputChange}
-                                className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                                className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                               >
                                 <option value="">--Select Department--</option>
                                 <option value="1">B.E. Computer Science & Engineering</option>
@@ -1606,7 +1606,7 @@ export const FacultyDashboard = () => {
                             id="description"
                             rows={4}
                             placeholder="Enter test description..."
-                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                            className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                           />
                         </div>
                         {/* Active Status */}
@@ -1617,7 +1617,7 @@ export const FacultyDashboard = () => {
                             checked={formData.is_active}
                             onChange={handleInputChange}
                             id="is_active"
-                            className="w-4 h-4 text-orange-500 focus:ring-orange-400 border-gray-300 rounded"
+                            className="w-4 h-4 text-blue-500 focus:ring-orange-400 border-gray-300 rounded"
                           />
                           <label htmlFor="is_active" className="font-semibold text-gray-700">
                             Active Test (students can take this test)
@@ -1651,13 +1651,13 @@ export const FacultyDashboard = () => {
                 <div className="flex items-center justify-between p-4">
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center gap-2 text-lg font-semibold text-gray-800 hover:text-orange-600 transition-colors"
+                    className="flex items-center gap-2 text-lg font-semibold text-gray-800 hover:text-blue-600 transition-colors"
                   >
                     <span>Filter Tests</span>
                     {(() => {
                       const activeFilters = Object.values(filters).filter(value => value).length;
                       return activeFilters > 0 && (
-                        <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                        <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
                           {activeFilters}
                         </span>
                       );
@@ -1697,7 +1697,7 @@ export const FacultyDashboard = () => {
                           value={filters.testName}
                           onChange={(e) => handleFilterChange('testName', e.target.value)}
                           placeholder="Search by test name..."
-                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none text-sm"
+                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
                         />
                       </div>
 
@@ -1711,7 +1711,7 @@ export const FacultyDashboard = () => {
                           value={filters.topic}
                           onChange={(e) => handleFilterChange('topic', e.target.value)}
                           placeholder="Search by topic..."
-                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none text-sm"
+                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
                         />
                       </div>
 
@@ -1724,7 +1724,7 @@ export const FacultyDashboard = () => {
                           type="date"
                           value={filters.dateFrom}
                           onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none text-sm"
+                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
                         />
                       </div>
 
@@ -1737,7 +1737,7 @@ export const FacultyDashboard = () => {
                           type="date"
                           value={filters.dateTo}
                           onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none text-sm"
+                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
                         />
                       </div>
 
@@ -1751,7 +1751,7 @@ export const FacultyDashboard = () => {
                           value={filters.timeSlot}
                           onChange={(e) => handleFilterChange('timeSlot', e.target.value)}
                           placeholder="HH:MM"
-                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none text-sm"
+                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
                         />
                       </div>
                     </div>
@@ -1792,7 +1792,7 @@ export const FacultyDashboard = () => {
                     name="topic_id"
                     value={formData.topic_id}
                     onChange={handleTopicChange}
-                    className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                    className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                   >
                     <option value="">--Select Topic (Optional)--</option>
                     {topics.map((topic) => (
@@ -1812,7 +1812,7 @@ export const FacultyDashboard = () => {
                       name="sub_topic_id"
                       value={formData.sub_topic_id}
                       onChange={handleInputChange}
-                      className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                      className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                     >
                       <option value="">--Select Sub Topic--</option>
                       {subTopics.map((sub) => (
@@ -1857,7 +1857,7 @@ export const FacultyDashboard = () => {
                   id="edit-title"
                   placeholder="Enter test title"
                   required
-                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                 />
                 {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
               </div>
@@ -1874,7 +1874,7 @@ export const FacultyDashboard = () => {
                   id="edit-subject"
                   placeholder="Enter subject"
                   required
-                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                 />
                 {errors.subject && <p className="text-red-500 text-sm mt-1">{errors.subject}</p>}
               </div>
@@ -1889,7 +1889,7 @@ export const FacultyDashboard = () => {
                   value={formData.date}
                   onChange={handleInputChange}
                   id="edit-date"
-                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                 />
               </div>
               <div className="flex flex-col md:col-span-1">
@@ -1903,7 +1903,7 @@ export const FacultyDashboard = () => {
                   onChange={handleInputChange}
                   id="edit-time-slot"
                   placeholder="Select time"
-                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                 />
               </div>
               {/* Year & Department */}
@@ -1916,7 +1916,7 @@ export const FacultyDashboard = () => {
                       name="year"
                       value={formData.year}
                       onChange={handleInputChange}
-                      className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                      className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                     >
                       <option value="">--Select Year--</option>
                       <option value="1">1st Year</option>
@@ -1934,7 +1934,7 @@ export const FacultyDashboard = () => {
                       name="department_id"
                       value={formData.department_id}
                       onChange={handleInputChange}
-                      className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                      className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                     >
                       <option value="">--Select Department--</option>
                       <option value="1">B.E. Computer Science & Engineering</option>
@@ -1965,7 +1965,7 @@ export const FacultyDashboard = () => {
                   placeholder="Enter duration in minutes"
                   required
                   min="1"
-                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                 />
                 {errors.duration_minutes && <p className="text-red-500 text-sm mt-1">{errors.duration_minutes}</p>}
               </div>
@@ -1988,7 +1988,7 @@ export const FacultyDashboard = () => {
                   required
                   min="1"
                   max={formData.sub_topic_id && questionCount > 0 ? questionCount : undefined}
-                  className={`p-3 md:p-4 border rounded-xl shadow-sm focus:ring-2 focus:border-orange-400 outline-none transition duration-200 w-full ${formData.sub_topic_id && questionCount > 0 && parseInt(formData.num_questions) > questionCount
+                  className={`p-3 md:p-4 border rounded-xl shadow-sm focus:ring-2 focus:border-blue-500 outline-none transition duration-200 w-full ${formData.sub_topic_id && questionCount > 0 && parseInt(formData.num_questions) > questionCount
                     ? 'border-red-500 focus:ring-red-400'
                     : 'border-gray-300 focus:ring-orange-400'
                     }`}
@@ -2027,7 +2027,7 @@ export const FacultyDashboard = () => {
                   id="edit-description"
                   rows={4}
                   placeholder="Enter test description..."
-                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200 w-full"
+                  className="p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200 w-full"
                 />
               </div>
               {/* Active Status */}
@@ -2038,7 +2038,7 @@ export const FacultyDashboard = () => {
                   checked={formData.is_active}
                   onChange={handleInputChange}
                   id="edit-is-active"
-                  className="w-4 h-4 text-orange-500 focus:ring-orange-400 border-gray-300 rounded"
+                  className="w-4 h-4 text-blue-500 focus:ring-orange-400 border-gray-300 rounded"
                 />
                 <label htmlFor="edit-is-active" className="font-semibold text-gray-700">
                   Active Test (students can take this test)
@@ -2109,7 +2109,7 @@ export const FacultyDashboard = () => {
               ) : profile ? (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-6">
-                    <div className="w-24 h-24 rounded-full bg-orange-500 flex items-center justify-center text-white text-4xl font-bold">
+                    <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-white text-4xl font-bold">
                       {profile.name ? profile.name.charAt(0).toUpperCase() : "?"}
                     </div>
                     <div>
@@ -2152,10 +2152,9 @@ export const FacultyDashboard = () => {
         )}
       </div>
 
-      <div className="bg-orange-500 p-4 text-center">
+      <div className="bg-[#1a365d] p-4 text-center">
         <h2 className="uppercase text-xl text-white">
-          Developed By{" "}
-          <a href="https://www.nscet.org/ispin">Innovative Software Product Industry of NSCET</a>
+          Developed By Thichana Moorthy IV Year ECE of EASA
         </h2>
       </div>
 
@@ -2201,8 +2200,8 @@ export const FacultyDashboard = () => {
                       </div>
                     </div>
                     <div className="mt-2 text-sm">
-                      <span className="font-medium text-orange-600">Correct Answer: </span>
-                      <span className="bg-orange-100 px-2 py-1 rounded text-orange-800">
+                      <span className="font-medium text-blue-600">Correct Answer: </span>
+                      <span className="bg-blue-100 px-2 py-1 rounded text-blue-800">
                         {question.correct || question.correct_answer}
                       </span>
                     </div>
@@ -2254,7 +2253,7 @@ export const FacultyDashboard = () => {
                       size="sm"
                       variant="outline"
                       onClick={handleRandomizePreview}
-                      className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                      className="text-blue-600 border-orange-300 hover:bg-blue-50"
                     >
                       🎲 Randomize
                     </Button>
@@ -2376,7 +2375,7 @@ export const FacultyDashboard = () => {
                   <div key={question.test_question_id} className="border rounded-lg p-4 bg-white shadow-sm">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
-                        <span className="bg-orange-100 text-orange-800 text-sm font-medium px-3 py-1 rounded-full">
+                        <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
                           Q{index + 1}
                         </span>
                         {question.topic_title && (
@@ -2462,7 +2461,7 @@ export const FacultyDashboard = () => {
                         alert('Failed to assign questions: ' + error.message);
                       }
                     }}
-                    className="bg-orange-500 text-white hover:bg-orange-600"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
                   >
                     Assign Questions Now
                   </Button>
@@ -2516,7 +2515,7 @@ export const FacultyDashboard = () => {
                 id="profile-name"
                 value={profileData.name}
                 onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Enter your name"
                 required
               />
@@ -2532,7 +2531,7 @@ export const FacultyDashboard = () => {
                 id="profile-email"
                 value={profileData.email}
                 onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Enter your email"
                 required
               />
@@ -2572,7 +2571,7 @@ export const FacultyDashboard = () => {
                 id="current-password"
                 value={passwordData.currentPassword}
                 onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Enter current password"
                 required
               />
@@ -2588,7 +2587,7 @@ export const FacultyDashboard = () => {
                 id="new-password"
                 value={passwordData.newPassword}
                 onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Enter new password (min 6 characters)"
                 required
                 minLength={6}
@@ -2605,7 +2604,7 @@ export const FacultyDashboard = () => {
                 id="confirm-password"
                 value={passwordData.confirmPassword}
                 onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Confirm new password"
                 required
               />
@@ -2653,7 +2652,7 @@ export const FacultyDashboard = () => {
                 id="topic-title"
                 value={topicData.title}
                 onChange={(e) => setTopicData(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Enter topic title"
                 required
               />
@@ -2668,7 +2667,7 @@ export const FacultyDashboard = () => {
                 id="topic-description"
                 value={topicData.description}
                 onChange={(e) => setTopicData(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Enter topic description (optional)"
                 rows={3}
               />
@@ -2718,7 +2717,7 @@ export const FacultyDashboard = () => {
                 id="subtopic-title"
                 value={subTopicData.title}
                 onChange={(e) => setSubTopicData(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Enter subtopic title"
                 required
               />
@@ -2733,7 +2732,7 @@ export const FacultyDashboard = () => {
                 id="subtopic-description"
                 value={subTopicData.description}
                 onChange={(e) => setSubTopicData(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition duration-200"
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                 placeholder="Enter subtopic description (optional)"
                 rows={3}
               />
