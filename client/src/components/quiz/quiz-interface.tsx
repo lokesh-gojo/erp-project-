@@ -75,8 +75,8 @@ export const QuizInterface = () => {
     if (timeLeft > 0 && !showResults) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && testInfo && !showResults) {
-      // Auto-submit when time is up
+    } else if (timeLeft === 0 && testInfo && testInfo.type !== 'placement' && !showResults) {
+      // Auto-submit when time is up for regular tests
       handleSubmitTest();
     }
   }, [timeLeft, showResults]);
@@ -300,7 +300,7 @@ export const QuizInterface = () => {
 
       setTestInfo(questionsData.test);
       setQuestions(questionsData.questions);
-      setTimeLeft(questionsData.test.duration_minutes * 60); // Convert to seconds
+      setTimeLeft((questionsData.test.duration_minutes || 0) * 60); // Convert to seconds
 
       // Initialize answers array
       setAnswers(questionsData.questions.map((q: Question) => ({
@@ -667,15 +667,20 @@ export const QuizInterface = () => {
             </Badge>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              <span className={cn(
-                "text-lg font-mono font-semibold",
-                timeLeft <= 300 ? "text-destructive" : "text-foreground"
-              )}>
-                {formatTime(timeLeft)}
-              </span>
-            </div>
+            {testInfo?.type !== 'placement' && (
+              <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-full border border-border">
+                <Clock className={cn(
+                  "h-4 w-4",
+                  timeLeft <= 300 ? "text-destructive animate-pulse" : "text-muted-foreground"
+                )} />
+                <span className={cn(
+                  "text-lg font-mono font-semibold",
+                  timeLeft <= 300 ? "text-destructive" : "text-foreground"
+                )}>
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
+            )}
             <Button
               variant="outline"
               size="sm"

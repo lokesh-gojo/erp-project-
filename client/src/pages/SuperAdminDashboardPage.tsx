@@ -31,8 +31,10 @@ import {
   RefreshCw,
   X,
   AlertCircle,
-  Menu
+  Menu,
+  Briefcase
 } from "lucide-react";
+import PlacementAdminUI from "../components/dashboard/PlacementAdminUI";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
@@ -1278,6 +1280,9 @@ export default function SuperAdminDashboardPage() {
             <SidebarLink icon={<BarChart3 className="h-4.5 w-4.5" />} active={view === "reports"} onClick={() => setView("reports")}>
               Reports & Analytics
             </SidebarLink>
+            <SidebarLink icon={<Briefcase className="h-4.5 w-4.5" />} active={view === "placement"} onClick={() => setView("placement")}>
+              Placement Mode
+            </SidebarLink>
           </nav>
         </div>
 
@@ -1333,7 +1338,8 @@ export default function SuperAdminDashboardPage() {
                   { id: "students", label: "Students", icon: <GraduationCap className="h-4.5 w-4.5" /> },
                   { id: "questions", label: "Question Bank", icon: <BookOpen className="h-4.5 w-4.5" /> },
                   { id: "tests", label: "Tests Management", icon: <FileText className="h-4.5 w-4.5" /> },
-                  { id: "reports", label: "Reports & Analytics", icon: <BarChart3 className="h-4.5 w-4.5" /> }
+                  { id: "reports", label: "Reports & Analytics", icon: <BarChart3 className="h-4.5 w-4.5" /> },
+                  { id: "placement", label: "Placement Mode", icon: <Briefcase className="h-4.5 w-4.5" /> }
                 ].map((item) => (
                   <SidebarLink
                     key={item.id}
@@ -2185,6 +2191,12 @@ export default function SuperAdminDashboardPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {view === "placement" && (
+            <div className="animate-in fade-in duration-300">
+              <PlacementAdminUI />
             </div>
           )}
         </main>

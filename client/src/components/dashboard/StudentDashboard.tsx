@@ -2,8 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatsCard } from "./stats-card";
-import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar } from "lucide-react";
+import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase } from "lucide-react";
 import Header from "./student/Header";
+import PlacementModeUI from "./PlacementModeUI";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -512,6 +513,10 @@ const StudentDashboard = () => {
               <nav className="flex gap-4 items-center mb-2">
                 <Button variant={activeSection === "dashboard" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("dashboard")}>Dashboard</Button>
                 <Button variant={activeSection === "quizzes" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("quizzes")}>My Quizzes</Button>
+                <Button variant={activeSection === "placement" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("placement")}>
+                  <Briefcase className="h-4 w-4 mr-2" />
+                  Placement Mode
+                </Button>
                 <Button variant={activeSection === "leaderboard" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("leaderboard")}>Leaderboard</Button>
                 <Button variant={activeSection === "profile" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("profile")}>Profile</Button>
               </nav>
@@ -614,6 +619,10 @@ const StudentDashboard = () => {
               <Leaderboard autoFetch={true} />
             </CardContent>
           </Card>
+        )}
+
+        {activeSection === "placement" && (
+          <PlacementModeUI />
         )}
 
         {activeSection === "profile" && (
