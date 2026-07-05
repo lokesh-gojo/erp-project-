@@ -12,6 +12,9 @@ router.get('/', testController.getTestsByUser);
 // Get tests for student based on year and department
 router.get('/student/available', testController.getTestsForStudent);
 
+// Get placement tests for student
+router.get('/student/placement', testController.getPlacementTestsForStudent);
+
 // Get a specific test by ID
 router.get('/:test_id', testController.getTestById);
 
@@ -29,6 +32,7 @@ router.put('/:test_id/toggle-status', testController.toggleTestStatus);
 
 // Test questions routes
 router.post('/:test_id/assign-questions', testController.assignQuestionsToTest);
+router.post('/:test_id/upload-questions', testController.uploadQuestionsToTest);
 router.get('/:test_id/questions', testController.getTestQuestions);
 router.get('/:test_id/questions/count', testController.getTestQuestionsCount);
 

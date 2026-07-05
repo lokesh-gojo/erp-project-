@@ -1,52 +1,52 @@
-const db = require('../config/conn');
+	const db = require('../config/conn');
 
-exports.getTopics = (req, res) => {
-	const sql = `
-		SELECT t.topic_id, t.title, t.description, t.added_by, t.by_admin, t.created_at, t.updated_at,
-					 u.id as user_id, u.name as user_name, u.email as user_email
-		FROM topics t
-		LEFT JOIN users u ON t.added_by = u.id
-		WHERE 1
-	`;
-	db.query(sql, (err, results) => {
-		if (err) return res.status(500).json({ error: 'Database error', details: err });
-		res.json({ success: true, topics: results });
-	});
-};
+	exports.getTopics = (req, res) => {
+		const sql = `
+			SELECT t.topic_id, t.title, t.description, t.added_by, t.by_admin, t.created_at, t.updated_at,
+						u.id as user_id, u.name as user_name, u.email as user_email
+			FROM topics t
+			LEFT JOIN users u ON t.added_by = u.id
+			WHERE 1
+		`;
+		db.query(sql, (err, results) => {
+			if (err) return res.status(500).json({ error: 'Database error', details: err });
+			res.json({ success: true, topics: results });
+		});
+	};
 
 
-exports.getSubTopics = (req, res) => {
-	const sql = `
-		SELECT s.sub_topic_id, s.topic_id, s.title, s.description, s.added_by, s.by_admin, s.created_at, s.updated_at,
-					 u.id as user_id, u.name as user_name, u.email as user_email,
-					 COUNT(q.question_id) as question_count
-		FROM sub_topics s
-		LEFT JOIN users u ON s.added_by = u.id
-		LEFT JOIN questions q ON q.sub_topic_id = s.sub_topic_id
-		GROUP BY s.sub_topic_id, s.topic_id, s.title, s.description, s.added_by, s.by_admin, s.created_at, s.updated_at, u.id, u.name, u.email
-		ORDER BY s.created_at DESC
-	`;
-	db.query(sql, (err, results) => {
-		if (err) return res.status(500).json({ error: 'Database error', details: err });
-		res.json({ success: true, sub_topics: results });
-	});
-};
+	exports.getSubTopics = (req, res) => {
+		const sql = `
+			SELECT s.sub_topic_id, s.topic_id, s.title, s.description, s.added_by, s.by_admin, s.created_at, s.updated_at,
+						u.id as user_id, u.name as user_name, u.email as user_email,
+						COUNT(q.question_id) as question_count
+			FROM sub_topics s
+			LEFT JOIN users u ON s.added_by = u.id
+			LEFT JOIN questions q ON q.sub_topic_id = s.sub_topic_id
+			GROUP BY s.sub_topic_id, s.topic_id, s.title, s.description, s.added_by, s.by_admin, s.created_at, s.updated_at, u.id, u.name, u.email
+			ORDER BY s.created_at DESC
+		`;
+		db.query(sql, (err, results) => {
+			if (err) return res.status(500).json({ error: 'Database error', details: err });
+			res.json({ success: true, sub_topics: results });
+		});
+	};
 
-exports.getSubTopicsWithQuestions = (req, res) => {
-	const sql = `
-		SELECT s.sub_topic_id, s.topic_id, s.title AS sub_topic_title, s.description AS sub_topic_description, s.added_by, s.by_admin, s.created_at, s.updated_at,
-					 u.id as user_id, u.name as user_name, u.email as user_email,
-					 q.question_id, q.question_text AS question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option
-		FROM sub_topics s
-		LEFT JOIN users u ON s.added_by = u.id
-		LEFT JOIN questions q ON q.sub_topic_id = s.sub_topic_id
-		WHERE 1
-		ORDER BY s.sub_topic_id, q.question_id
-	`;
-	db.query(sql, (err, results) => {
-		if (err) return res.status(500).json({ error: 'Database error', details: err });
-		const subTopicsMap = {};
-		results.forEach(row => {
+	exports.getSubTopicsWithQuestions = (req, res) => {
+		const sql = `
+			SELECT s.sub_topic_id, s.topic_id, s.title AS sub_topic_title, s.description AS sub_topic_description, s.added_by, s.by_admin, s.created_at, s.updated_at,
+						u.id as user_id, u.name as user_name, u.email as user_email,
+						q.question_id, q.question_text AS question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option
+			FROM sub_topics s
+			LEFT JOIN users u ON s.added_by = u.id
+			LEFT JOIN questions q ON q.sub_topic_id = s.sub_topic_id
+			WHERE 1
+			ORDER BY s.sub_topic_id, q.question_id
+		`;
+		db.query(sql, (err, results) => {
+			if (err) return res.status(500).json({ error: 'Database error', details: err });
+			const subTopicsMap = {};
+			results.forEach(row => {
 			if (!subTopicsMap[row.sub_topic_id]) {
 				subTopicsMap[row.sub_topic_id] = {
 					sub_topic_id: row.sub_topic_id,

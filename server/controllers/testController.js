@@ -12,7 +12,7 @@ exports.getTestsByUser = (req, res) => {
   let sql = `
     SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
            t.num_questions, t.department_id, t.year, t.date, t.time_slot, t.duration_minutes, 
-           t.created_at, t.is_active,
+           t.created_at, t.is_active, t.type AS test_type,
            tp.title as topic_title,
            st.title as sub_topic_title,
            d.full_name as department_name,
@@ -58,7 +58,8 @@ exports.getTestsByUser = (req, res) => {
       time_slot: row.time_slot,
       duration_minutes: row.duration_minutes,
       created_at: row.created_at,
-      is_active: row.is_active
+      is_active: row.is_active,
+      test_type: row.test_type
     }));
 
     res.json({ success: true, tests: formattedResults });
@@ -76,7 +77,7 @@ exports.getTestsForStudent = (req, res) => {
   const sql = `
     SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
            t.num_questions, t.department_id, t.year, t.date, t.time_slot, t.duration_minutes, 
-           t.created_at, t.is_active,
+           t.created_at, t.is_active, t.type AS test_type,
            tp.title as topic_title,
            st.title as sub_topic_title,
            d.full_name as department_name,
@@ -108,6 +109,7 @@ exports.getTestsForStudent = (req, res) => {
     INNER JOIN users student ON student.id = ?
     WHERE (t.department_id IS NULL OR t.department_id = student.department_id)
       AND (t.year IS NULL OR t.year = student.year)
+      AND t.type != 'placement'
     ORDER BY 
       t.is_active DESC,
       CASE 
@@ -141,6 +143,73 @@ exports.getTestsForStudent = (req, res) => {
       duration_minutes: row.duration_minutes,
       created_at: row.created_at,
       is_active: row.is_active,
+      faculty_name: row.faculty_name,
+      status: row.student_status || (row.is_active === 1 ? 'available' : 'inactive'),
+      score: row.score,
+      start_time: row.start_time,
+      end_time: row.end_time
+    }));
+
+    res.json({ success: true, tests: formattedResults });
+  });
+};
+
+// Get placement tests for student
+exports.getPlacementTestsForStudent = (req, res) => {
+  const studentId = req.user?.id;
+
+  if (!studentId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  const sql = `
+    SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
+           t.num_questions, t.created_at, t.is_active, t.type AS test_type,
+           tp.title as topic_title,
+           st.title as sub_topic_title,
+           u.name as faculty_name,
+           stest.status as student_status,
+           stest.score,
+           stest.start_time,
+           stest.end_time
+    FROM tests t
+    LEFT JOIN topics tp ON t.topic_id = tp.topic_id
+    LEFT JOIN sub_topics st ON t.sub_topic_id = st.sub_topic_id
+    LEFT JOIN users u ON t.added_by = u.id
+    LEFT JOIN (
+      /* Get only the latest session for the specific student */
+      SELECT st1.test_id, st1.status, st1.score, st1.start_time, st1.end_time
+      FROM student_tests st1
+      INNER JOIN (
+        SELECT MAX(student_test_id) as latest_id
+        FROM student_tests
+        WHERE student_id = ?
+        GROUP BY test_id
+      ) st2 ON st1.student_test_id = st2.latest_id
+    ) stest ON t.test_id = stest.test_id
+    WHERE t.type = 'placement'
+    ORDER BY t.created_at DESC
+  `;
+
+  db.query(sql, [studentId], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    const formattedResults = results.map(row => ({
+      test_id: row.test_id,
+      title: row.title,
+      description: row.description,
+      subject: row.subject,
+      added_by: row.added_by,
+      topic_id: row.topic_id,
+      topic_title: row.topic_title,
+      sub_topic_id: row.sub_topic_id,
+      sub_topic_title: row.sub_topic_title,
+      num_questions: row.num_questions,
+      created_at: row.created_at,
+      is_active: row.is_active,
+      test_type: row.test_type,
       faculty_name: row.faculty_name,
       status: row.student_status || (row.is_active === 1 ? 'available' : 'inactive'),
       score: row.score,
@@ -229,12 +298,17 @@ exports.createTest = (req, res) => {
   const {
     title, description, subject, topic_id, sub_topic_id, num_questions,
     department_id, year, date, time_slot, duration_minutes, is_active, total_marks,
-    questions, faculty_id
+    questions, faculty_id, type
   } = req.body;
 
-  if (!title || !subject || !num_questions || !duration_minutes) {
+  if (!title || !subject || !num_questions) {
     return res.status(400).json({
-      error: 'Required fields: title, subject, num_questions, duration_minutes'
+      error: 'Required fields: title, subject, num_questions'
+    });
+  }
+  if (type !== 'placement' && !duration_minutes) {
+    return res.status(400).json({
+      error: 'Required fields: duration_minutes for regular tests'
     });
   }
 
@@ -243,14 +317,14 @@ exports.createTest = (req, res) => {
 
   const sql = `
     INSERT INTO tests (title, description, subject, added_by, topic_id, sub_topic_id, 
-                      num_questions, department_id, year, date, time_slot, duration_minutes, is_active, total_marks)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      num_questions, department_id, year, date, time_slot, duration_minutes, is_active, total_marks, type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const values = [
     title, description, subject, targetAddedBy, topic_id || null, sub_topic_id || null,
-    num_questions, department_id || null, year || null, date || null, time_slot || null, duration_minutes,
-    is_active !== undefined ? is_active : 1, marks
+    num_questions, department_id || null, year || null, date || null, time_slot || null, duration_minutes || null,
+    is_active !== undefined ? is_active : 1, marks, type || 'regular'
   ];
 
   db.query(sql, values, (err, result) => {
@@ -498,6 +572,65 @@ exports.toggleTestStatus = (req, res) => {
 };
 
 // Assign questions to test
+exports.uploadQuestionsToTest = async (req, res) => {
+  const { test_id } = req.params;
+  const { questions } = req.body;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!questions || !Array.isArray(questions) || questions.length === 0) {
+    return res.status(400).json({ error: 'Questions array is required' });
+  }
+
+  try {
+    const [testRows] = await db.promise().query('SELECT sub_topic_id FROM tests WHERE test_id = ?', [test_id]);
+    const sub_topic_id = testRows[0]?.sub_topic_id || null;
+
+    const values = questions.map(q => [
+      sub_topic_id,
+      userId,
+      Number(req.user?.role_id) === 1 ? 1 : 0,
+      q.text || q.question_text || '',
+      q.a || q.option_a || '',
+      q.b || q.option_b || '',
+      q.c || q.option_c || '',
+      q.d || q.option_d || '',
+      q.correct || q.correct_option || 'A',
+      q.mark || 1
+    ]);
+
+    const insertQQuery = `
+      INSERT INTO questions 
+      (sub_topic_id, created_by, by_admin, question_text, option_a, option_b, option_c, option_d, correct_option, mark)
+      VALUES ?
+    `;
+    const [result] = await db.promise().query(insertQQuery, [values]);
+    const firstInsertId = result.insertId;
+    const insertedCount = result.affectedRows;
+
+    const testQuestionRows = [];
+    for (let i = 0; i < insertedCount; i++) {
+      testQuestionRows.push([test_id, firstInsertId + i]);
+    }
+
+    const insertTQQuery = 'INSERT INTO test_questions (test_id, question_id) VALUES ?';
+    await db.promise().query(insertTQQuery, [testQuestionRows]);
+
+    await db.promise().query(
+      'UPDATE tests SET num_questions = (SELECT COUNT(*) FROM test_questions WHERE test_id = ?) WHERE test_id = ?',
+      [test_id, test_id]
+    );
+
+    res.json({ success: true, message: `${insertedCount} questions uploaded successfully` });
+  } catch (err) {
+    console.error('Error uploading questions:', err);
+    res.status(500).json({ error: 'Database error', details: err.message || err });
+  }
+};
+
 exports.assignQuestionsToTest = async (req, res) => {
   const { test_id } = req.params;
   const { sub_topic_id, num_questions } = req.body;
