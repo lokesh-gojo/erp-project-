@@ -132,6 +132,10 @@ export const FacultyDashboard = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
 
+  // Departments state
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+
   // Tests state
   const [tests, setTests] = useState([]);
   const [testsLoading, setTestsLoading] = useState(false);
@@ -242,6 +246,7 @@ export const FacultyDashboard = () => {
     fetchTests();
     fetchTopics();
     fetchDashboardStats();
+    fetchDepartments();
   }, []);
 
   // Update quiz-related stats whenever tests change
@@ -364,6 +369,31 @@ export const FacultyDashboard = () => {
       console.error('Failed to fetch topics:', error);
     } finally {
       setTopicsLoading(false);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    setDepartmentsLoading(true);
+    try {
+      const token = localStorage.getItem('jwt_token');
+      const headers: any = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${API_BASE}/dept/departments`, {
+        method: "GET",
+        headers,
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setDepartments(data || []);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch departments:', error);
+    } finally {
+      setDepartmentsLoading(false);
     }
   };
 
@@ -998,6 +1028,16 @@ export const FacultyDashboard = () => {
     }
   };
 
+  const formatDateForInput = (dateVal: any) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleEditTest = (test) => {
     setEditingTest(test);
     setFormData({
@@ -1009,7 +1049,7 @@ export const FacultyDashboard = () => {
       num_questions: test.num_questions?.toString() || '',
       department_id: test.department_id?.toString() || '',
       year: test.year?.toString() || '',
-      date: test.date || '',
+      date: formatDateForInput(test.date),
       time_slot: test.time_slot || '',
       duration_minutes: test.duration_minutes?.toString() || '',
       is_active: test.is_active || false
@@ -1580,16 +1620,11 @@ export const FacultyDashboard = () => {
                                 className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                               >
                                 <option value="">--Select Department--</option>
-                                <option value="1">B.E. Computer Science & Engineering</option>
-                                <option value="2">B.E. Civil Engineering</option>
-                                <option value="3">B.E. Electronics & Communication Engineering</option>
-                                <option value="4">B.E. Electrical and Electronics Engineering</option>
-                                <option value="5">B.E. Mechanical Engineering</option>
-                                <option value="6">B.Tech. Artificial Intelligence & Data Science</option>
-                                <option value="7">B.Tech. Information Technology</option>
-                                <option value="8">Structural Engineering</option>
-                                <option value="9">Manufacturing Engineering</option>
-                                <option value="10">Science and Humanities</option>
+                                {departments.map((dept) => (
+                                  <option key={dept.id} value={dept.id.toString()}>
+                                    {dept.full_name || dept.short_name}
+                                  </option>
+                                ))}
                               </select>
                             </div>
                           </div>
@@ -1937,16 +1972,11 @@ export const FacultyDashboard = () => {
                       className="w-full p-3 md:p-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition duration-200"
                     >
                       <option value="">--Select Department--</option>
-                      <option value="1">B.E. Computer Science & Engineering</option>
-                      <option value="2">B.E. Civil Engineering</option>
-                      <option value="3">B.E. Electronics & Communication Engineering</option>
-                      <option value="4">B.E. Electrical and Electronics Engineering</option>
-                      <option value="5">B.E. Mechanical Engineering</option>
-                      <option value="6">B.Tech. Artificial Intelligence & Data Science</option>
-                      <option value="7">B.Tech. Information Technology</option>
-                      <option value="8">Structural Engineering</option>
-                      <option value="9">Manufacturing Engineering</option>
-                      <option value="10">Science and Humanities</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.id.toString()}>
+                          {dept.full_name || dept.short_name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

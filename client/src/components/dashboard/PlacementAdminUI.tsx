@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { Plus, BookOpen, Layers, CheckCircle2 } from "lucide-react";
+import { Plus, BookOpen, Layers, CheckCircle2, Upload, Download, Info } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
@@ -18,6 +18,48 @@ export default function PlacementAdminUI() {
   const [newTest, setNewTest] = useState({
     title: "", description: "", subject: "", topic_id: "", num_questions: 10, questions: [] as any[]
   });
+
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const downloadSampleCSV = () => {
+    const headers = ["question_text", "option_a", "option_b", "option_c", "option_d", "correct_option", "mark"];
+    const rows = [
+      ["What is the capital of France?", "Paris", "London", "Berlin", "Madrid", "A", "1"],
+      ["Which data structure uses LIFO?", "Queue", "Stack", "Tree", "Graph", "B", "1"]
+    ];
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "placement_questions_template.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   function parseCSV(text: string) {
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -284,16 +326,66 @@ export default function PlacementAdminUI() {
                   onChange={(e) => setNewTest({ ...newTest, num_questions: Number(e.target.value) })}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Upload Questions (CSV)</label>
-                <input
-                  type="file"
-                  accept=".csv"
-                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-                />
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="block text-sm font-medium text-slate-700">Upload Questions (CSV)</label>
+                  <button
+                    type="button"
+                    onClick={downloadSampleCSV}
+                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-medium bg-transparent border-0 cursor-pointer p-0"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download Template
+                  </button>
+                </div>
+                
+                <div 
+                  className={`mt-1 border-2 border-dashed rounded-lg p-5 transition-colors duration-150 text-center ${
+                    dragActive 
+                      ? "border-blue-500 bg-blue-50/50" 
+                      : "border-slate-200 bg-slate-50 hover:bg-slate-100/70"
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    type="file"
+                    id="placementQuestionsCSV"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                  />
+                  <div className="flex flex-col items-center justify-center">
+                    <Upload className={`h-8 w-8 mb-2 ${dragActive ? "text-blue-500 animate-bounce" : "text-slate-400"}`} />
+                    <p className="text-sm text-slate-600">
+                      <label htmlFor="placementQuestionsCSV" className="cursor-pointer font-semibold text-blue-600 hover:text-blue-700 hover:underline">
+                        Choose a CSV file
+                      </label>
+                      {" "}or drag and drop it here
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">Only CSV files are supported</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="flex gap-2">
+                    <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-xs font-semibold text-slate-700 block mb-1">Expected CSV Headers:</span>
+                      <code className="text-[10px] bg-slate-100 text-slate-800 p-1.5 rounded block whitespace-normal break-all font-mono leading-relaxed select-all">
+                        question_text, option_a, option_b, option_c, option_d, correct_option, mark
+                      </code>
+                      <span className="text-[10px] text-slate-500 mt-1.5 block">
+                        * Required: <code className="bg-slate-100 px-0.5 rounded">correct_option</code> value must be single letter: A, B, C, or D.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 {newTest.questions.length > 0 && (
-                  <p className="text-xs text-emerald-600 mt-2 font-medium">
+                  <p className="text-xs text-emerald-600 mt-2 font-medium flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     ✓ {newTest.questions.length} questions loaded from CSV
                   </p>
                 )}
