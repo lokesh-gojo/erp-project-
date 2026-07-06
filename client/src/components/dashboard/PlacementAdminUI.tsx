@@ -20,16 +20,169 @@ export default function PlacementAdminUI() {
     title: "", description: "", subject: "", topic_id: "", num_questions: 10, questions: [] as any[]
   });
 
+  // Drag and drop states
+  const [dragActive, setDragActive] = useState(false);
+
+  // Questions modal states
+  const [questionsModalOpen, setQuestionsModalOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({
+    text: "", a: "", b: "", c: "", d: "", correct: ""
+  });
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const downloadSampleCSV = () => {
+    const headers = "question_text,option_a,option_b,option_c,option_d,correct_option,mark\n";
+    const sampleRow = "What is the capital of France?,Paris,London,Berlin,Rome,A,1\n";
+    const blob = new Blob([headers + sampleRow], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "placement_questions_sample.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleViewQuestions = async (course: any) => {
+    setSelectedCourse(course);
+    setQuestionsModalOpen(true);
+    setLoadingQuestions(true);
+    try {
+      const token = localStorage.getItem("jwt_token");
+      const res = await fetch(`${API_BASE}/test/${course.test_id}/questions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setQuestions(data.questions);
+      } else {
+        alert(data.error || "Failed to fetch questions");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error fetching questions");
+    } finally {
+      setLoadingQuestions(false);
+    }
+  };
+
+  const handleSaveQuestion = async (questionId: number) => {
+    try {
+      const token = localStorage.getItem("jwt_token");
+      const res = await fetch(`${API_BASE}/question/update/${questionId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(editForm)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingQuestionId(null);
+        if (selectedCourse) {
+          handleViewQuestions(selectedCourse);
+        }
+      } else {
+        alert(data.error || "Failed to update question");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error saving question");
+    }
+  };
+
   function parseCSV(text: string) {
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    if (!lines.length) return [];
-    const headers = lines[0].split(",").map((h) => h.trim());
-    return lines.slice(1).map((line) => {
-      // Handle commas inside quotes properly if needed, but for simplicity split by comma
-      // This simple split is fine if the CSV is basic, or we can use a more robust regex
-      const cols = line.split(",").map((c) => c.trim());
+    const lines: string[] = [];
+    let currentLine = "";
+    let inQuotes = false;
+    
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+      
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          currentLine += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if ((char === '\r' || char === '\n') && !inQuotes) {
+        if (char === '\r' && nextChar === '\n') {
+          i++;
+        }
+        lines.push(currentLine);
+        currentLine = "";
+      } else {
+        currentLine += char;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    const cleanLines = lines.map(l => l.trim()).filter(Boolean);
+    if (!cleanLines.length) return [];
+    
+    const parseCols = (line: string) => {
+      const cols: string[] = [];
+      let currentCol = "";
+      let quoteActive = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const nextChar = line[i + 1];
+        
+        if (char === '"') {
+          if (quoteActive && nextChar === '"') {
+            currentCol += '"';
+            i++;
+          } else {
+            quoteActive = !quoteActive;
+          }
+        } else if (char === ',' && !quoteActive) {
+          cols.push(currentCol.trim());
+          currentCol = "";
+        } else {
+          currentCol += char;
+        }
+      }
+      cols.push(currentCol.trim());
+      return cols;
+    };
+    
+    const headers = parseCols(cleanLines[0]).map(h => h.toLowerCase().replace(/[\s_-]/g, ""));
+    
+    return cleanLines.slice(1).map((line) => {
+      const cols = parseCols(line);
       const obj: any = {};
-      headers.forEach((h, i) => (obj[h] = cols[i] ?? ""));
+      headers.forEach((h, i) => {
+        obj[h] = cols[i] ?? "";
+      });
       return obj;
     });
   }
@@ -38,18 +191,37 @@ export default function PlacementAdminUI() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const parsed = parseCSV(e.target?.result as string);
-      const prepared = parsed.map((r, idx) => ({
-        id: Date.now() + idx,
-        text: r.question_text || r.text,
-        a: r.option_a || r.a,
-        b: r.option_b || r.b,
-        c: r.option_c || r.c,
-        d: r.option_d || r.d,
-        correct: r.correct_option || r.correct,
-        subject: r.subject || r.category,
-        difficulty: r.difficulty || "Medium",
-        mark: r.mark || 1
-      }));
+      const prepared = parsed.map((r, idx) => {
+        const findVal = (keys: string[]) => {
+          for (const key of Object.keys(r)) {
+            if (keys.some(k => key.includes(k) || k.includes(key))) {
+              return r[key];
+            }
+          }
+          return "";
+        };
+
+        const text = r.questiontext || r.question || r.text || findVal(["question", "text", "qtext"]);
+        const a = r.optiona || r.a || findVal(["optiona", "a", "optia"]);
+        const b = r.optionb || r.b || findVal(["optionb", "b", "optib"]);
+        const c = r.optionc || r.c || findVal(["optionc", "c", "optic"]);
+        const d = r.optiond || r.d || findVal(["optiond", "d", "optid"]);
+        const correct = r.correctoption || r.correct || r.answer || findVal(["correct", "ans"]);
+        const mark = r.mark || r.marks || findVal(["mark", "score"]);
+
+        return {
+          id: Date.now() + idx,
+          text: text || "",
+          a: a || "",
+          b: b || "",
+          c: c || "",
+          d: d || "",
+          correct: correct || "A",
+          subject: r.subject || r.category || "General",
+          difficulty: r.difficulty || "Medium",
+          mark: Number(mark) || 1
+        };
+      });
       setNewTest({ ...newTest, questions: prepared, num_questions: prepared.length || newTest.num_questions });
       alert(`Parsed ${prepared.length} questions from CSV.`);
     };

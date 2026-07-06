@@ -207,7 +207,7 @@ export default function PlacementModeUI() {
                   ) : (
                     <Button 
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
-                      onClick={() => navigate(`/test/instructions/${test.test_id}`)}
+                      onClick={() => navigate(`/quiz/${test.test_id}`)}
                     >
                       <Play className="h-4 w-4 mr-2" /> Start Course
                     </Button>

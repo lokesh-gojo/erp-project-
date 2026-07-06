@@ -218,6 +218,8 @@ export const LoginForm = () => {
                       value={formData.rollNo}
                       onChange={(e) => {
                         setFormData(prev => ({ ...prev, rollNo: e.target.value }));
+                      }}
+                      onBlur={(e) => {
                         fetchUserDetails(e.target.value);
                       }}
                       className={`pl-12 py-4 bg-gray-50/80 border-gray-200/80 hover:border-primary/50 hover:bg-white focus-visible:ring-4 ${isSuperAdmin ? 'focus-visible:ring-cyan-500/20 focus-visible:border-cyan-500' : 'focus-visible:ring-primary/20 focus-visible:border-primary'} focus-visible:bg-white transition-all duration-300 rounded-xl shadow-sm text-sm font-medium placeholder:text-gray-400`}

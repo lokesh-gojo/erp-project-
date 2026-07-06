@@ -288,7 +288,7 @@ exports.getTestById = (req, res) => {
 };
 
 // Create a new test
-exports.createTest = (req, res) => {
+exports.createTest = async (req, res) => {
   const userId = req.user?.id;
 
   if (!userId) {
@@ -315,6 +315,25 @@ exports.createTest = (req, res) => {
   const marks = total_marks || num_questions; // Default to 1 mark per question if not specified
   const targetAddedBy = ((Number(req.user?.role_id) === 4 || Number(req.user?.role_id) === 5) && faculty_id) ? faculty_id : userId;
 
+  let resolvedSubTopicId = sub_topic_id || null;
+  if (type === 'placement' && topic_id && !resolvedSubTopicId) {
+    try {
+      const [subtopics] = await db.promise().query('SELECT sub_topic_id FROM sub_topics WHERE topic_id = ? LIMIT 1', [topic_id]);
+      if (subtopics.length > 0) {
+        resolvedSubTopicId = subtopics[0].sub_topic_id;
+      } else {
+        // Create default subtopic
+        const [insertResult] = await db.promise().query(
+          'INSERT INTO sub_topics (topic_id, title, description, added_by) VALUES (?, ?, ?, ?)',
+          [topic_id, 'General ' + title, 'Default subtopic for ' + title, targetAddedBy]
+        );
+        resolvedSubTopicId = insertResult.insertId;
+      }
+    } catch (err) {
+      console.error('Error resolving subtopic:', err);
+    }
+  }
+
   const sql = `
     INSERT INTO tests (title, description, subject, added_by, topic_id, sub_topic_id, 
                       num_questions, department_id, year, date, time_slot, duration_minutes, is_active, total_marks, type)
@@ -322,32 +341,30 @@ exports.createTest = (req, res) => {
   `;
 
   const values = [
-    title, description, subject, targetAddedBy, topic_id || null, sub_topic_id || null,
+    title, description, subject, targetAddedBy, topic_id || null, resolvedSubTopicId,
     num_questions, department_id || null, year || null, date || null, time_slot || null, duration_minutes || null,
     is_active !== undefined ? is_active : 1, marks, type || 'regular'
   ];
 
-  db.query(sql, values, (err, result) => {
-    if (err) {
-      console.error('Test creation error:', err);
-      return res.status(500).json({ error: 'Database error', details: err.message || err });
-    }
-
+  try {
+    const [result] = await db.promise().query(sql, values);
     const testId = result.insertId;
-    const questionIds = (questions || []).map(q => typeof q === 'object' ? (q.question_id || q.id) : q).filter(Boolean);
+    
+    // Note: for placement tests, we strip out any invalid temporary question IDs
+    // since the client will upload the questions separately using /upload-questions.
+    const questionIds = type === 'placement' 
+      ? [] 
+      : (questions || []).map(q => typeof q === 'object' ? (q.question_id || q.id) : q).filter(Boolean);
 
     if (questionIds.length > 0) {
       const insertQuery = 'INSERT INTO test_questions (test_id, question_id) VALUES ?';
       const testQuestionRows = questionIds.map(qId => [testId, qId]);
-      db.query(insertQuery, [testQuestionRows], (insertErr) => {
-        if (insertErr) {
-          console.error('Error inserting test questions:', insertErr);
-        }
-        res.json({
-          success: true,
-          message: 'Test created and questions assigned successfully',
-          test_id: testId
-        });
+      await db.promise().query(insertQuery, [testQuestionRows]);
+      
+      res.json({
+        success: true,
+        message: 'Test created and questions assigned successfully',
+        test_id: testId
       });
     } else {
       res.json({
@@ -356,7 +373,10 @@ exports.createTest = (req, res) => {
         test_id: testId
       });
     }
-  });
+  } catch (err) {
+    console.error('Test creation error:', err);
+    res.status(500).json({ error: 'Database error', details: err.message || err });
+  }
 };
 
 // Update an existing test
