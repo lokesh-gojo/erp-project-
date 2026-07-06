@@ -720,10 +720,17 @@ exports.getTestQuestions = (req, res) => {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
   }
 
-  // First verify test belongs to user
-  const checkTestSql = 'SELECT test_id FROM tests WHERE test_id = ? AND added_by = ?';
+  // First verify test belongs to user or is superadmin
+  let checkTestSql = 'SELECT test_id FROM tests WHERE test_id = ?';
+  const queryParams = [test_id];
+  const roleId = Number(req.user?.role_id);
+  
+  if (roleId !== 4 && roleId !== 5) {
+    checkTestSql += ' AND added_by = ?';
+    queryParams.push(userId);
+  }
 
-  db.query(checkTestSql, [test_id, userId], (checkErr, checkResults) => {
+  db.query(checkTestSql, queryParams, (checkErr, checkResults) => {
     if (checkErr) {
       return res.status(500).json({ error: 'Database error', details: checkErr });
     }
@@ -786,10 +793,17 @@ exports.getTestQuestionsCount = (req, res) => {
     return res.status(401).json({ error: 'Unauthorized: No user id in token' });
   }
 
-  // First verify test belongs to user
-  const checkTestSql = 'SELECT test_id FROM tests WHERE test_id = ? AND added_by = ?';
+  // First verify test belongs to user or is superadmin
+  let checkTestSql = 'SELECT test_id FROM tests WHERE test_id = ?';
+  const queryParams = [test_id];
+  const roleId = Number(req.user?.role_id);
+  
+  if (roleId !== 4 && roleId !== 5) {
+    checkTestSql += ' AND added_by = ?';
+    queryParams.push(userId);
+  }
 
-  db.query(checkTestSql, [test_id, userId], (checkErr, checkResults) => {
+  db.query(checkTestSql, queryParams, (checkErr, checkResults) => {
     if (checkErr) {
       return res.status(500).json({ error: 'Database error', details: checkErr });
     }
