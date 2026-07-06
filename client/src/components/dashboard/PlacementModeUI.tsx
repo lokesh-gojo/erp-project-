@@ -41,7 +41,7 @@ export default function PlacementModeUI() {
     // Average score percentage of completed tests
     const totalPercentage = completed.reduce((acc, t) => {
       // Assuming score is out of num_questions, or we just calculate an estimated percentage
-      const maxScore = t.num_questions;
+      const maxScore = t.num_questions || 1;
       const score = t.score || 0;
       return acc + (score / maxScore) * 100;
     }, 0);
@@ -49,7 +49,58 @@ export default function PlacementModeUI() {
     return Math.round(totalPercentage / completed.length);
   };
 
+  const getSkillBreakdown = () => {
+    if (placementTests.length === 0) return [];
+    
+    const skillsMap: Record<string, { totalScore: number, maxScore: number }> = {};
+    
+    placementTests.forEach(t => {
+      const skillName = t.topic_title || t.subject || 'General';
+      
+      if (!skillsMap[skillName]) {
+        skillsMap[skillName] = { totalScore: 0, maxScore: 0 };
+      }
+      
+      if (t.status === 'completed') {
+        skillsMap[skillName].totalScore += (t.score || 0);
+        skillsMap[skillName].maxScore += (t.num_questions || 1);
+      } else {
+        // Even if uncompleted, add to maxScore so they see they have potential 0% until taken?
+        // Actually, it's better to calculate percentage only on completed tests for a skill.
+        // Wait, if they haven't taken it, percentage is 0. Let's just track taken ones.
+        // Actually, let's track the max score they COULD have gotten on tests they took.
+      }
+    });
+
+    // Add up the percentages for each topic based on tests they've actually taken
+    // OR: sum(score) / sum(max_questions) for completed tests per topic.
+    
+    // Let's reset the map to ONLY consider topics they have at least ONE completed test for, 
+    // OR we show 0% for topics they haven't completed.
+    const allSkillsMap: Record<string, { totalScore: number, maxScore: number }> = {};
+    placementTests.forEach(t => {
+      const skillName = t.topic_title || t.subject || 'General';
+      if (!allSkillsMap[skillName]) {
+        allSkillsMap[skillName] = { totalScore: 0, maxScore: 0 };
+      }
+      if (t.status === 'completed') {
+        allSkillsMap[skillName].totalScore += (t.score || 0);
+        allSkillsMap[skillName].maxScore += (t.num_questions || 1);
+      }
+    });
+
+    const breakdown = Object.keys(allSkillsMap).map(skill => {
+      const data = allSkillsMap[skill];
+      const percentage = data.maxScore > 0 ? Math.round((data.totalScore / data.maxScore) * 100) : 0;
+      return { skill, percentage };
+    });
+    
+    // Sort by percentage descending
+    return breakdown.sort((a, b) => b.percentage - a.percentage);
+  };
+
   const readinessScore = getReadinessScore();
+  const skillBreakdown = getSkillBreakdown();
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -82,7 +133,6 @@ export default function PlacementModeUI() {
           </CardContent>
         </Card>
 
-        {/* Skill Breakdown (Mocked for UI as per requirement) */}
         <Card className="flex-1 border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
@@ -90,42 +140,26 @@ export default function PlacementModeUI() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-slate-700">Aptitude</span>
-                <span className="text-slate-500">82%</span>
-              </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full" style={{ width: '82%' }}></div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-slate-700">SQL</span>
-                <span className="text-slate-500">90%</span>
-              </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '90%' }}></div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-slate-700">Python</span>
-                <span className="text-slate-500">74%</span>
-              </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full" style={{ width: '74%' }}></div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-slate-700">React</span>
-                <span className="text-slate-500">65%</span>
-              </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-orange-500 rounded-full" style={{ width: '65%' }}></div>
-              </div>
-            </div>
+            {skillBreakdown.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-4">No skills data available yet.</p>
+            ) : (
+              skillBreakdown.map((item, index) => {
+                const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-orange-500', 'bg-purple-500'];
+                const colorClass = colors[index % colors.length];
+                
+                return (
+                  <div key={item.skill} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium text-slate-700">{item.skill}</span>
+                      <span className="text-slate-500">{item.percentage}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full ${colorClass} rounded-full`} style={{ width: `${item.percentage}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>
