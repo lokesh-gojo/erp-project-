@@ -14,7 +14,9 @@ const QuestionModal = ({ isOpen, onClose, question, onSave, title, isEditing = f
     c: question?.c || "",
     d: question?.d || "",
     correct: question?.correct || "A",
-    marks: question?.marks || 1
+    marks: question?.marks || 1,
+    image_data: question?.image_data || "",
+    imageFile: null
   });
 
   useEffect(() => {
@@ -26,7 +28,9 @@ const QuestionModal = ({ isOpen, onClose, question, onSave, title, isEditing = f
         c: question.c || "",
         d: question.d || "",
         correct: question.correct || "A",
-        marks: question.marks || 1
+        marks: question.marks || 1,
+        image_data: question.image_data || "",
+        imageFile: null
       });
     }
   }, [question]);
@@ -43,6 +47,21 @@ const QuestionModal = ({ isOpen, onClose, question, onSave, title, isEditing = f
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Image is too large. Please upload an image smaller than 2MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, image_data: reader.result, imageFile: file }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   if (!isOpen) return null;
@@ -71,6 +90,22 @@ const QuestionModal = ({ isOpen, onClose, question, onSave, title, isEditing = f
               required
               placeholder="Enter your question here..."
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Question Image (Optional)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {formData.image_data && (
+              <div className="mt-3 relative inline-block">
+                <img src={formData.image_data} alt="Preview" className="max-h-32 rounded-lg border shadow-sm" />
+                <button type="button" onClick={() => setFormData(prev => ({ ...prev, image_data: '', imageFile: null }))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs hover:bg-red-600 shadow-sm">✕</button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -295,19 +330,25 @@ const UploadQuestionsWithPreview = ({ selectedTopic, selectedSubtopic, onClose, 
 
       for (const question of previewQuestions) {
         try {
-          const payload = {
-            sub_topic_id: selectedSubtopic.id,
-            user_id: userId,
-            ...question
-          };
+          const uploadData = new FormData();
+          uploadData.append('sub_topic_id', selectedSubtopic.id);
+          if (userId) uploadData.append('user_id', userId);
+          
+          Object.keys(question).forEach(key => {
+            if (key !== 'imageFile' && key !== 'image_data') {
+              uploadData.append(key, question[key]);
+            }
+          });
+          if (question.imageFile) {
+            uploadData.append('image_file', question.imageFile);
+          }
 
           const response = await fetch(`${API_BASE}/question/addquestions`, {
             method: 'PUT',
             headers: {
-              'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(payload)
+            body: uploadData
           });
 
           const result = await response.json();
@@ -550,6 +591,7 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
   const [viewingSubtopic, setViewingSubtopic] = useState(null);
   const [selectedTopicIds, setSelectedTopicIds] = useState([]);
   const [selectedSubtopicIds, setSelectedSubtopicIds] = useState([]);
+  const [editingUploadedQuestion, setEditingUploadedQuestion] = useState(null);
 
   const fetchTopics = async () => {
     try {
@@ -694,6 +736,63 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
       setQuestionsData([]);
     } finally {
       setQuestionsLoading(false);
+    }
+  };
+
+  const handleUpdateUploadedQuestion = async (formData) => {
+    try {
+      const token = localStorage.getItem('jwt_token');
+      
+      const uploadData = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key !== 'imageFile' && key !== 'image_data') {
+          uploadData.append(key, formData[key]);
+        }
+      });
+      if (formData.imageFile) {
+        uploadData.append('image_file', formData.imageFile);
+      } else if (formData.image_data === '') {
+        // If image was cleared, we can send an empty string or explicitly handle it
+        uploadData.append('image_data', '');
+      } else if (formData.image_data) {
+        uploadData.append('image_data', formData.image_data);
+      }
+
+      const response = await fetch(`${API_BASE}/question/sub-topics-with-questions/${editingUploadedQuestion.question_id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: uploadData
+      });
+      const data = await response.json();
+      if (data.success) {
+        setEditingUploadedQuestion(null);
+        alert("Question updated successfully!");
+        
+        // Update the list locally without refetching and triggering the loading spinner
+        setQuestionsData(prev => prev.map(q => {
+          if (q.question_id === editingUploadedQuestion.question_id) {
+            return {
+              ...q,
+              text: formData.text,
+              a: formData.a,
+              b: formData.b,
+              c: formData.c,
+              d: formData.d,
+              correct: formData.correct,
+              marks: formData.marks,
+              image_data: data.image_data !== undefined ? data.image_data : formData.image_data
+            };
+          }
+          return q;
+        }));
+      } else {
+        alert("Failed to update question: " + data.error);
+      }
+    } catch (error) {
+      console.error('Error updating question:', error);
+      alert("Error updating question");
     }
   };
 
@@ -925,10 +1024,24 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
                             {index + 1}. {question.text}
                           </h4>
                         </div>
-                        <div className="ml-4 bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                          {question.marks || 1} mark{(question.marks || 1) !== 1 ? 's' : ''}
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                            {question.marks || 1} mark{(question.marks || 1) !== 1 ? 's' : ''}
+                          </div>
+                          <button
+                            onClick={() => setEditingUploadedQuestion(question)}
+                            className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition duration-200"
+                          >
+                            Edit
+                          </button>
                         </div>
                       </div>
+
+                      {question.image_data && (
+                        <div className="mb-4">
+                          <img src={question.image_data} alt="Question" className="max-h-48 rounded-lg border shadow-sm" />
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {['A', 'B', 'C', 'D'].map((option) => {
@@ -963,6 +1076,15 @@ export function TopicsSection({ onCreateTopic, onCreateSubTopic, refreshTrigger 
               )}
             </div>
           </div>
+          {/* Edit Uploaded Question Modal */}
+          <QuestionModal
+            isOpen={!!editingUploadedQuestion}
+            onClose={() => setEditingUploadedQuestion(null)}
+            question={editingUploadedQuestion}
+            onSave={handleUpdateUploadedQuestion}
+            title="Edit Uploaded Question"
+            isEditing={true}
+          />
         </div>
       )}
     </div>
