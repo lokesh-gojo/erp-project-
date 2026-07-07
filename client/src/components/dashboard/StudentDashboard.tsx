@@ -2,9 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatsCard } from "./stats-card";
-import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase } from "lucide-react";
+import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase, Activity } from "lucide-react";
 import Header from "./student/Header";
 import PlacementModeUI from "./PlacementModeUI";
+import SidebarLayout from "../layout/SidebarLayout";  
+import { StudentReportsSection } from "./student/StudentReportsSection";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -74,6 +77,15 @@ const formatDuration = (timeLimit: number) => {
   return `${timeLimit}m`;
 };
 
+const navItems = [
+  { id: "dashboard", label: "Dashboard", icon: <BarChart3 className="h-5 w-5" /> },
+  { id: "quizzes", label: "My Quizzes", icon: <BookOpen className="h-5 w-5" /> },
+  { id: "placement", label: "Placement Mode", icon: <Briefcase className="h-5 w-5" /> },
+  { id: "leaderboard", label: "Leaderboard", icon: <Trophy className="h-5 w-5" /> },
+  { id: "reports", label: "Reports", icon: <FileText className="h-5 w-5" /> },
+  { id: "profile", label: "Profile", icon: <User className="h-5 w-5" /> },
+];
+
 const studentTestsSection = ({ tests, navigate, isMissedView = false }: { tests: StudentTest[]; navigate: (path: string) => void; isMissedView?: boolean }) => (
   <div className="space-y-4">
     {tests.length === 0 ? (
@@ -85,10 +97,10 @@ const studentTestsSection = ({ tests, navigate, isMissedView = false }: { tests:
       tests.map((test, idx) => {
         const isCompleted = test.status === 'completed';
         return (
-          <div key={test.test_id + '-' + idx} className="flex items-center justify-between p-4 border border-border rounded-lg bg-background">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h3 className="font-medium text-foreground">{test.title}</h3>
+          <div key={test.test_id + '-' + idx} className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 border-b border-gray-100 last:border-0 rounded-2xl bg-white hover:bg-gray-50 transition-colors shadow-sm mb-4">
+            <div className="flex-1 w-full md:w-auto">
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-lg font-bold text-gray-900">{test.title}</h3>
                 {isCompleted ? (
                   <Badge variant="outline" className="bg-success text-success-foreground">Completed</Badge>
                 ) : isMissedView ? (
@@ -136,13 +148,22 @@ const studentTestsSection = ({ tests, navigate, isMissedView = false }: { tests:
                 )}
               </div>
             </div>
-            <Button
-              variant={isCompleted ? 'outline' : (isMissedView ? 'secondary' : (test.is_active === 1 ? 'default' : 'outline'))}
-              disabled={isCompleted || isMissedView || test.is_active !== 1}
-              onClick={() => !isCompleted && !isMissedView && test.is_active === 1 && navigate(`/quiz/${test.test_id}`)}
-            >
-              {isCompleted ? 'Completed' : (isMissedView ? 'Missed' : (test.is_active === 1 ? 'Start Test' : 'Not Available'))}
-            </Button>
+            <div className="mt-4 md:mt-0 w-full md:w-auto flex justify-end">
+              {isCompleted ? (
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground font-medium mb-1">Score</div>
+                  <div className="text-2xl font-black text-gray-900">{test.score ?? 0}%</div>
+                </div>
+              ) : (
+                <Button 
+                  onClick={() => navigate(`/quiz/${test.test_id}`)}
+                  disabled={test.is_active === 0 || isMissedView}
+                  className="w-full md:w-auto bg-[#FFD166] hover:bg-[#e6bb5b] text-black font-bold rounded-xl px-8"
+                >
+                  {isMissedView ? 'Missed' : 'Take Quiz'}
+                </Button>
+              )}
+            </div>
           </div>
         );
       })
@@ -493,11 +514,11 @@ const StudentDashboard = () => {
 
 
   return (
-    <div className="min-h-screen">
+    <SidebarLayout navItems={navItems} activeSection={activeSection} setActiveSection={setActiveSection}>
       {/* Header */}
       <Header />
 
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="w-full max-w-[1800px] mx-auto p-4 md:p-8 space-y-6">
         {/* Welcome Message */}
         <Card>
           <CardContent className="p-3 sticky top-0">
@@ -510,86 +531,146 @@ const StudentDashboard = () => {
                   </p>
                 </div>
               </div>
-              <nav className="flex gap-4 items-center mb-2">
-                <Button variant={activeSection === "dashboard" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("dashboard")}>Dashboard</Button>
-                <Button variant={activeSection === "quizzes" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("quizzes")}>My Quizzes</Button>
-                <Button variant={activeSection === "placement" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("placement")}>
-                  <Briefcase className="h-4 w-4 mr-2" />
-                  Placement Mode
-                </Button>
-                <Button variant={activeSection === "leaderboard" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("leaderboard")}>Leaderboard</Button>
-                <Button variant={activeSection === "profile" ? "default" : "ghost"} size="sm" onClick={() => setActiveSection("profile")}>Profile</Button>
-              </nav>
             </div>
           </CardContent>
         </Card>
 
         {/* Section Content */}
         {activeSection === "dashboard" && (
-          <>
-            {/* Stats Cards - Dynamic */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard
-                title="Total Quizzes"
-                value={calculateStats().totalQuizzes}
-                icon={BookOpen}
-              />
-              <StatsCard
-                title="Completed"
-                value={calculateStats().completedQuizzes}
-                change={calculateStats().completedQuizzes > 0 ? `${calculateStats().completedQuizzes} completed` : "No quizzes yet"}
-                changeType="positive"
-                icon={CheckCircle}
-              />
-              <StatsCard
-                title="Average Score"
-                value={`${calculateStats().averageScore}%`}
-                change={calculateStats().averageScore > 0 ? "Overall average" : "No completed tests"}
-                changeType={calculateStats().averageScore >= 70 ? "positive" : "neutral"}
-                icon={Trophy}
-              />
-              <StatsCard
-                title="Class Rank"
-                value={calculateStats().rank !== "--" ? `#${calculateStats().rank}` : "--"}
-                change={studentStats.totalStudents > 0 ? `Out of ${studentStats.totalStudents} students` : "View leaderboard"}
-                changeType="neutral"
-                icon={User}
-              />
+          <div className="space-y-6">
+            {/* Stats Cards - Dynamic Themed */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="bg-[#FFD166] border-none shadow-md hover:shadow-lg transition-shadow rounded-2xl">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-semibold text-black/60 mb-1 uppercase tracking-wider">Total Quizzes</p>
+                      <h3 className="text-4xl font-extrabold text-black">{calculateStats().totalQuizzes}</h3>
+                    </div>
+                    <div className="p-3 bg-black rounded-2xl shadow-sm">
+                      <BookOpen className="h-6 w-6 text-[#FFD166]" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-[#cdb4db] border-none shadow-md hover:shadow-lg transition-shadow rounded-2xl">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-semibold text-black/60 mb-1 uppercase tracking-wider">Completed</p>
+                      <h3 className="text-4xl font-extrabold text-black">{calculateStats().completedQuizzes}</h3>
+                    </div>
+                    <div className="p-3 bg-black rounded-2xl shadow-sm">
+                      <CheckCircle className="h-6 w-6 text-[#cdb4db]" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-black/70 mt-4 font-semibold">
+                    {calculateStats().completedQuizzes > 0 ? `${calculateStats().completedQuizzes} completed` : "No quizzes yet"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-[#a2d2ff] border-none shadow-md hover:shadow-lg transition-shadow rounded-2xl">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-semibold text-black/60 mb-1 uppercase tracking-wider">Average Score</p>
+                      <h3 className="text-4xl font-extrabold text-black">{calculateStats().averageScore}%</h3>
+                    </div>
+                    <div className="p-3 bg-black rounded-2xl shadow-sm">
+                      <Trophy className="h-6 w-6 text-[#a2d2ff]" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-black/70 mt-4 font-semibold">
+                    {calculateStats().averageScore > 0 ? "Overall average" : "No completed tests"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-[#262628] border-none shadow-md hover:shadow-lg transition-shadow rounded-2xl">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-semibold text-white/60 mb-1 uppercase tracking-wider">Class Rank</p>
+                      <h3 className="text-4xl font-extrabold text-white">{calculateStats().rank !== "--" ? `#${calculateStats().rank}` : "--"}</h3>
+                    </div>
+                    <div className="p-3 bg-[#FFD166] rounded-2xl shadow-sm">
+                      <User className="h-6 w-6 text-black" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-white/70 mt-4 font-semibold">
+                    {studentStats.totalStudents > 0 ? `Out of ${studentStats.totalStudents} students` : "View leaderboard"}
+                  </p>
+                </CardContent>
+              </Card>
             </div>
-            {/* Recent Quizzes */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quizzes</CardTitle>
-                <CardDescription>
-                  Complete your assigned quizzes before the due date
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="available" className="w-full">
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="available">Available</TabsTrigger>
-                    <TabsTrigger value="completed">Completed</TabsTrigger>
-                    <TabsTrigger value="missed">Missed</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="available">
-                    {studentTestsSection({ tests: categorizedTests.available, navigate })}
-                  </TabsContent>
-                  <TabsContent value="completed">
-                    {studentTestsSection({ tests: categorizedTests.completed, navigate })}
-                  </TabsContent>
-                  <TabsContent value="missed">
-                    {studentTestsSection({ tests: categorizedTests.missed, navigate, isMissedView: true })}
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </>
+
+            {/* Performance Graph & Recent */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2 shadow-sm border-gray-100 rounded-2xl">
+                <CardHeader>
+                  <CardTitle>Performance Overview</CardTitle>
+                  <CardDescription>Your recent test scores</CardDescription>
+                </CardHeader>
+                <CardContent className="h-80">
+                  {categorizedTests.completed.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={[...categorizedTests.completed].reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                        <XAxis dataKey="title" tick={{fontSize: 12}} tickFormatter={(value) => value.substring(0, 10) + '...'} />
+                        <YAxis domain={[0, 100]} tick={{fontSize: 12}} />
+                        <RechartsTooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Line type="monotone" dataKey="score" stroke="#FFD166" strokeWidth={3} dot={{ r: 4, fill: "#262628" }} activeDot={{ r: 6 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-muted-foreground flex-col">
+                      <Activity className="h-12 w-12 mb-2 opacity-20" />
+                      <p>Complete tests to see your performance graph</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Recent Quizzes Mini View */}
+              <Card className="shadow-sm border-gray-100 rounded-2xl">
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                  <CardDescription>Your latest assignments</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {categorizedTests.available.slice(0, 4).map((test, idx) => (
+                      <div key={idx} className="flex items-center justify-between border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                        <div>
+                          <p className="font-semibold text-sm">{test.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{test.subject}</p>
+                        </div>
+                        <Button size="sm" onClick={() => navigate(`/quiz/${test.test_id}`)} className="bg-[#262628] hover:bg-black text-white rounded-xl">
+                          Start
+                        </Button>
+                      </div>
+                    ))}
+                    {categorizedTests.available.length === 0 && (
+                       <div className="text-sm text-muted-foreground text-center py-8">
+                         <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                         No pending assignments
+                       </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         )}
         {activeSection === "quizzes" && (
-          <Card className="min-h-screen">
-            <CardHeader>
-              <CardTitle>My Quizzes</CardTitle>
-              <CardDescription>
+          <Card className="min-h-screen rounded-2xl border-none shadow-sm bg-white">
+            <CardHeader className="border-b border-gray-100 pb-6 mb-6">
+              <CardTitle className="text-2xl font-bold">My Quizzes</CardTitle>
+              <CardDescription className="text-base">
                 View all your quizzes and performance
               </CardDescription>
             </CardHeader>
@@ -614,23 +695,30 @@ const StudentDashboard = () => {
           </Card>
         )}
         {activeSection === "leaderboard" && (
-          <Card>
-            <CardContent className="p-6">
-              <Leaderboard autoFetch={true} />
+          <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden min-h-screen">
+            <div className="h-2 bg-[#FFD166] w-full"></div>
+            <CardHeader className="border-b border-gray-100 pb-6 mb-6 pt-8 px-8">
+              <CardTitle className="text-2xl font-bold">Class Leaderboard</CardTitle>
+              <CardDescription className="text-base">
+                See where you stand among your peers
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-8 pb-8 pt-0">
+              <Leaderboard autoFetch={true} hideHeader={true} />
             </CardContent>
           </Card>
         )}
+
+        {activeSection === "reports" && <StudentReportsSection completedTests={categorizedTests.completed} profile={profile} />}
 
         {activeSection === "placement" && (
           <PlacementModeUI />
         )}
 
         {activeSection === "profile" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden">
+            <div className="h-32 bg-[#FFD166] w-full"></div>
+            <CardContent className="px-8 pb-8 pt-0">
 
 
               {profileLoading ? (
@@ -642,24 +730,24 @@ const StudentDashboard = () => {
                   <p>{profileError}</p>
                 </div>
               ) : profile ? (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   {/* Profile Header */}
-                  <div className="flex items-center space-x-6">
-                    <Avatar className="h-24 w-24">
-                      <AvatarFallback className="text-2xl">
-                        {profile.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'ST'}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-end space-y-4 sm:space-y-0 sm:space-x-6 -mt-16">
+                    <Avatar className="h-32 w-32 border-4 border-white shadow-md">
+                      <AvatarFallback className="text-4xl bg-[#262628] text-white">
+                        {profile.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'ST'}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="space-y-2">
-                      <h3 className="text-2xl font-semibold">{profile.name}</h3>
-
+                    <div className="space-y-1 text-center sm:text-left mb-2">
+                      <h3 className="text-3xl font-extrabold text-gray-900">{profile.name}</h3>
+                      <p className="text-muted-foreground font-medium">{profile.role} • {profile.department}</p>
                     </div>
                   </div>
 
                   {/* Profile Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <h4 className="text-lg font-medium">Personal Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
+                    <div className="space-y-5 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                      <h4 className="text-lg font-bold text-[#262628] flex items-center gap-2"><User className="h-5 w-5 text-[#FFD166]"/> Personal Information</h4>
                       <div className="space-y-3">
                         <div>
                           <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
@@ -672,8 +760,8 @@ const StudentDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <h4 className="text-lg font-medium">Academic Information</h4>
+                    <div className="space-y-5 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                      <h4 className="text-lg font-bold text-[#262628] flex items-center gap-2"><BookOpen className="h-5 w-5 text-[#FFD166]"/> Academic Information</h4>
                       <div className="space-y-3">
                         <div>
                           <Label className="text-sm font-medium text-muted-foreground">Role</Label>
@@ -689,12 +777,12 @@ const StudentDashboard = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-4 pt-6 border-t">
-                    <Button onClick={handleEditProfile}>
+                  <div className="flex flex-col sm:flex-row gap-4 pt-8 border-t border-gray-100">
+                    <Button onClick={handleEditProfile} className="bg-[#262628] hover:bg-black text-white rounded-xl">
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Profile
                     </Button>
-                    <Button variant="outline" onClick={() => setShowResetPasswordModal(true)}>
+                    <Button variant="outline" onClick={() => setShowResetPasswordModal(true)} className="rounded-xl border-gray-200">
                       <FileText className="h-4 w-4 mr-2" />
                       Change Password
                     </Button>
@@ -804,12 +892,12 @@ const StudentDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <div className='bg-[#1a365d] p-4 text-center'>
+      <div className='bg-[#1a365d] p-4 text-center shrink-0'>
         <h2 className='uppercase text-xl text-white'>
           Developed By Thichana Moorthy IV Year ECE of EASA
         </h2>
       </div>
-    </div>
+    </SidebarLayout>
   );
 };
 

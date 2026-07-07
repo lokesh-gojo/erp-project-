@@ -32,14 +32,15 @@ app.use((req, res, next) => {
     return res.sendStatus(200);
   }
 
-  // Enforce JSON for API write requests
+  // Enforce JSON or Multipart for API write requests
   if (
     req.path.startsWith('/api/') &&
     ['POST', 'PUT', 'PATCH'].includes(req.method) &&
-    !req.is('application/json')
+    !req.is('application/json') &&
+    !req.is('multipart/form-data')
   ) {
     return res.status(415).json({
-      error: 'Only application/json is allowed'
+      error: 'Only application/json or multipart/form-data is allowed'
     });
   }
 
@@ -51,6 +52,10 @@ app.use((req, res, next) => {
 ===================================================== */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from the uploads directory
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 /* =====================================================
    ROUTES

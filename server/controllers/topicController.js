@@ -13,12 +13,12 @@ exports.getTopicsWithSubTopics = (req, res) => {
     FROM topics t
     LEFT JOIN sub_topics s ON s.topic_id = t.topic_id
     LEFT JOIN questions q ON q.sub_topic_id = s.sub_topic_id
-    WHERE t.by_admin = 1 OR t.added_by = ?
+    WHERE t.by_admin = 1 OR t.added_by = ? OR (t.type = 'placement' AND ? = 1)
     GROUP BY t.topic_id, t.title, t.description, s.sub_topic_id, s.title, s.description
     ORDER BY t.created_at DESC, s.sub_topic_id ASC
   `;
 
-  db.query(sql, [userId], (err, results) => {
+  db.query(sql, [userId, req.user?.role_id === 1 ? 1 : 0], (err, results) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to fetch topics', details: err });
     }

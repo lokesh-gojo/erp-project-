@@ -36,7 +36,7 @@
 		const sql = `
 			SELECT s.sub_topic_id, s.topic_id, s.title AS sub_topic_title, s.description AS sub_topic_description, s.added_by, s.by_admin, s.created_at, s.updated_at,
 						u.id as user_id, u.name as user_name, u.email as user_email,
-						q.question_id, q.question_text AS question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option
+						q.question_id, q.question_text AS question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option, q.image_data
 			FROM sub_topics s
 			LEFT JOIN users u ON s.added_by = u.id
 			LEFT JOIN questions q ON q.sub_topic_id = s.sub_topic_id
@@ -81,11 +81,17 @@
 };
 
 exports.updateQuestion = (req, res) => {
-	const { question_id } = req.params;
-	const { text, a, b, c, d, correct } = req.body;
-	if (!question_id || !text || a == null || b == null || c == null || d == null || correct == null) {
-		return res.status(400).json({ error: 'Missing required fields' });
-	}
+  	const { question_id } = req.params;
+  	const { text, a, b, c, d, correct } = req.body;
+  	let image_data = req.body.image_data;
+  	
+  	if (req.file) {
+  	  image_data = req.protocol + '://' + req.get('host') + '/uploads/' + req.file.filename;
+  	}
+
+  	if (!question_id || !text || a == null || b == null || c == null || d == null || correct == null) {
+  		return res.status(400).json({ error: 'Missing required fields' });
+  	}
 	// prepare normalized correct value
 	let correctOption = String(correct).trim();
 	if (/^[1-4]$/.test(correctOption)) {
@@ -98,13 +104,13 @@ exports.updateQuestion = (req, res) => {
 		const idx = opts.findIndex(o => o === String(correct).trim());
 		if (idx !== -1) correctOption = 'ABCD'[idx];
 	}
-	const sql = `UPDATE questions SET question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ? WHERE question_id = ?`;
-	db.query(sql, [text, a, b, c, d, correctOption, question_id], (err, result) => {
-		if (err) return res.status(500).json({ error: 'Database error', details: err });
-		if (result.affectedRows === 0) return res.status(404).json({ error: 'Question not found' });
-		res.json({ success: true });
-	});
-};
+	const sql = `UPDATE questions SET question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ?, image_data = ? WHERE question_id = ?`;
+	db.query(sql, [text, a, b, c, d, correctOption, image_data !== undefined ? image_data : null, question_id], (err, result) => {
+  		if (err) return res.status(500).json({ error: 'Database error', details: err });
+  		if (result.affectedRows === 0) return res.status(404).json({ error: 'Question not found' });
+  		res.json({ success: true, image_data: image_data !== undefined ? image_data : null });
+  	});
+  };
 
 exports.getQuestionsByTopicAndStaff = (req, res) => {
 	const { topic_id } = req.params;
@@ -119,13 +125,13 @@ exports.getQuestionsByTopicAndStaff = (req, res) => {
 
 	const sql = `
 		SELECT q.question_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option,
-					 q.sub_topic_id, q.added_by, q.created_at, q.updated_at,
+					 q.sub_topic_id, q.created_by, q.created_at, 
 					 s.title AS sub_topic_title, s.topic_id,
 					 t.title AS topic_title
 		FROM questions q
 		JOIN sub_topics s ON q.sub_topic_id = s.sub_topic_id
 		JOIN topics t ON s.topic_id = t.topic_id
-		WHERE t.topic_id = ? AND q.added_by = ?
+		WHERE t.topic_id = ? AND q.created_by = ?
 		ORDER BY q.created_at DESC
 	`;
 	
@@ -167,9 +173,9 @@ exports.getQuestionsBySubTopicAndStaff = (req, res) => {
 
 	const sql = `
 		SELECT q.question_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option,
-					 q.sub_topic_id, q.created_at, q.updated_at
+					 q.sub_topic_id, q.created_at,  q.image_data
 		FROM questions q
-		WHERE q.sub_topic_id = ? AND q.added_by = ?
+		WHERE q.sub_topic_id = ? AND q.created_by = ?
 		ORDER BY q.created_at DESC
 	`;
 	
@@ -186,7 +192,7 @@ exports.getQuestionsBySubTopicAndStaff = (req, res) => {
 			correct: row.correct_option,
 			sub_topic_id: row.sub_topic_id,
 			created_at: row.created_at,
-			updated_at: row.updated_at
+			image_data: row.image_data
 		}));
 		
 		res.json({ success: true, questions: formattedResults });
@@ -206,7 +212,7 @@ exports.getQuestionsBySubTopic = (req, res) => {
 
 	const sql = `
 		SELECT q.question_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option,
-					 q.sub_topic_id, q.created_at, q.mark as marks
+					 q.sub_topic_id, q.created_at, q.mark as marks, q.image_data
 		FROM questions q
 		WHERE q.sub_topic_id = ?
 		ORDER BY q.created_at DESC 
@@ -226,7 +232,7 @@ exports.getQuestionsBySubTopic = (req, res) => {
 			sub_topic_id: row.sub_topic_id,
 			marks: row.marks || 1,
 			created_at: row.created_at,
-			updated_at: row.updated_at
+			image_data: row.image_data
 		}));
 		
 		res.json({ success: true, questions: formattedResults });
@@ -235,9 +241,14 @@ exports.getQuestionsBySubTopic = (req, res) => {
 
 
 exports.addQuestion = (req, res) => {
-	const { sub_topic_id, text, a, b, c, d, correct, user_id, marks } = req.body;
-	const userId = user_id || req.user?.id; 
-	const questionMarks = marks || 1; 
+  	const { sub_topic_id, text, a, b, c, d, correct, user_id, marks } = req.body;
+  	let image_data = req.body.image_data;
+  	if (req.file) {
+  	  image_data = req.protocol + '://' + req.get('host') + '/uploads/' + req.file.filename;
+  	}
+
+  	const userId = user_id || req.user?.id; 
+  	const questionMarks = marks || 1; 
 	
 	if (!sub_topic_id || !text || a == null || b == null || c == null || d == null || correct == null) {
 		return res.status(400).json({ error: 'All fields are required: sub_topic_id, text, a, b, c, d, correct' });
@@ -247,8 +258,8 @@ exports.addQuestion = (req, res) => {
 	}
 
 	const sql = `
-		INSERT INTO questions (sub_topic_id, question_text, option_a, option_b, option_c, option_d, correct_option, created_by, by_admin, mark)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO questions (sub_topic_id, question_text, option_a, option_b, option_c, option_d, correct_option, created_by, by_admin, mark, image_data)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`;
 
 	// normalise and map correct option
@@ -266,7 +277,7 @@ exports.addQuestion = (req, res) => {
 		if (idx !== -1) correctOption = 'ABCD'[idx];
 	}
 
-	db.query(sql, [sub_topic_id, text, a, b, c, d, correctOption, userId, 0, questionMarks], (err, result) => {
+	db.query(sql, [sub_topic_id, text, a, b, c, d, correctOption, userId, 0, questionMarks, image_data || null], (err, result) => {
 		if (err) {
 			console.error('Question insert error:', err);
 			return res.status(500).json({ error: 'Database error', details: err.message || err });

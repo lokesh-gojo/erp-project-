@@ -2,8 +2,9 @@ import { ReportsSectionUI } from "./ReportsSectionUI";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatsCard } from "./stats-card";
-import { BookOpen, Users, BarChart3, Plus, Edit, Eye, FileText } from "lucide-react";
+import { BookOpen, Users, BarChart3, Plus, Edit, Eye, FileText, Trophy, Clock, User, Layers } from "lucide-react";
 import Header from "./faculty/Header";
+import SidebarLayout from "../layout/SidebarLayout";
 import { TopicsSection } from "./faculty/Topic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useState, useEffect, useRef } from "react";
@@ -1252,12 +1253,21 @@ export const FacultyDashboard = () => {
     }
   };
 
+  const navItems = [
+    { id: "dashboard", label: "Dashboard", icon: <BarChart3 className="h-5 w-5" /> },
+    { id: "recent", label: "Tests", icon: <FileText className="h-5 w-5" /> },
+    { id: "topics", label: "Topics", icon: <Layers className="h-5 w-5" /> },
+    { id: "leaderboard", label: "Leaderboard", icon: <Trophy className="h-5 w-5" /> },
+    { id: "reports", label: "Reports", icon: <BarChart3 className="h-5 w-5" /> },
+    { id: "profile", label: "Profile", icon: <User className="h-5 w-5" /> },
+  ];
+
   return (
-    <div className="min-h-screen">
+    <SidebarLayout navItems={navItems} activeSection={activeSection} setActiveSection={setActiveSection}>
       {/* Header */}
       <Header />
 
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="w-full max-w-[1800px] mx-auto p-4 md:p-8 space-y-6">
         {/* Welcome Message */}
         <Card>
           <CardContent className="p-4">
@@ -1265,53 +1275,10 @@ export const FacultyDashboard = () => {
               <div>
                 <h2 className="text-xl font-semibold text-foreground">Welcome back, {profile?.name || "User"}!</h2>
               </div>
-              <nav className="flex flex-wrap gap-2 items-center">
-                <Button
-                  variant={activeSection === "dashboard" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setActiveSection("dashboard")}
-                >
-                  Dashboard
-                </Button>
-                <Button
-                  variant={activeSection === "recent" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setActiveSection("recent")}
-                >
-                  Tests
-                </Button>
-                <Button
-                  variant={activeSection === "topics" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setActiveSection("topics")}
-                >
-                  Topics
-                </Button>
-                <Button
-                  variant={activeSection === "leaderboard" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setActiveSection("leaderboard")}
-                >
-                  Leaderboard
-                </Button>
-                <Button
-                  variant={activeSection === "reports" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setActiveSection("reports")}
-                >
-                  Reports
-                </Button>
-                <Button
-                  variant={activeSection === "profile" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setActiveSection("profile")}
-                >
-                  Profile
-                </Button>
-              </nav>
             </div>
           </CardContent>
         </Card>
+
 
         {/* Section Content */}
         {activeSection === "dashboard" && (
@@ -2789,6 +2756,6 @@ export const FacultyDashboard = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </SidebarLayout>
   );
 };

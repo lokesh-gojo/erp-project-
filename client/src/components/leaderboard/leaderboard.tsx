@@ -32,7 +32,7 @@ const getRankStyle = (rank: number) => {
   }
 };
 
-export const Leaderboard = ({ autoFetch = true }: { autoFetch?: boolean } = {}) => {
+export const Leaderboard = ({ autoFetch = true, hideHeader = false }: { autoFetch?: boolean; hideHeader?: boolean } = {}) => {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [tests, setTests] = useState<any[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string>("");
@@ -110,23 +110,25 @@ export const Leaderboard = ({ autoFetch = true }: { autoFetch?: boolean } = {}) 
   }, [selectedTestId]);
 
   return (
-    <div className="min-h-screen bg-card-secondary">
+    <div className={`min-h-screen ${hideHeader ? 'bg-transparent' : 'bg-card-secondary'}`}>
       {/* Header */}
-      <div className="bg-background border-b border-border p-6 shadow-sm">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-foreground flex items-center justify-center gap-3">
-              <Trophy className="h-8 w-8 text-yellow-500" />
-              Leaderboard
-            </h1>
-            <p className="text-muted-foreground mt-2">Top performers in quiz competitions</p>
+      {!hideHeader && (
+        <div className="bg-background border-b border-border p-6 shadow-sm">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-foreground flex items-center justify-center gap-3">
+                <Trophy className="h-8 w-8 text-yellow-500" />
+                Leaderboard
+              </h1>
+              <p className="text-muted-foreground mt-2">Top performers in quiz competitions</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-4xl mx-auto p-6 space-y-8">
+      <div className={`max-w-4xl mx-auto space-y-8 ${hideHeader ? 'pt-2' : 'p-6'}`}>
         {/* Test Selection Card */}
-        <Card className="border-primary/20 shadow-md">
+        <Card className="border-gray-100 shadow-sm rounded-2xl bg-gray-50/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <ListChecks className="h-5 w-5 text-primary" />

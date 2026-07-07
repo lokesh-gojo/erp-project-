@@ -555,12 +555,21 @@ export default function PlacementAdminUI() {
                   </div>
                 </div>
 
-                {newTest.questions.length > 0 && (
-                  <p className="text-xs text-emerald-600 mt-2 font-medium flex items-center gap-1.5">
-                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    ✓ {newTest.questions.length} questions loaded from CSV
-                  </p>
-                )}
+                  {newTest.questions.length > 0 && (
+                    <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-between">
+                      <p className="text-sm text-emerald-700 font-medium flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        {newTest.questions.length} questions loaded successfully
+                      </p>
+                      <Button type="button" variant="outline" size="sm" className="bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100" onClick={() => {
+                        setSelectedCourse({ title: newTest.title || "New Course Draft" });
+                        setQuestions(newTest.questions);
+                        setQuestionsModalOpen(true);
+                      }}>
+                        Preview Questions
+                      </Button>
+                    </div>
+                  )}
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setTestModalOpen(false)}>Cancel</Button>
@@ -585,9 +594,9 @@ export default function PlacementAdminUI() {
             ) : (
               <div className="space-y-4">
                 {questions.map((q, idx) => (
-                  <Card key={q.question_id} className="border-slate-200 shadow-sm">
+                  <Card key={q.question_id || `new-${idx}`} className="border-slate-200 shadow-sm mb-4">
                     <CardContent className="pt-4">
-                      {editingQuestionId === q.question_id ? (
+                      {editingQuestionId === q.question_id && q.question_id ? (
                         <div className="space-y-3">
                           <div>
                             <label className="text-xs font-semibold text-slate-500">Question Text</label>
@@ -627,17 +636,19 @@ export default function PlacementAdminUI() {
                       ) : (
                         <div>
                           <div className="flex justify-between items-start mb-2">
-                            <p className="font-medium text-slate-800"><span className="mr-2 text-slate-400">{idx + 1}.</span>{q.text}</p>
-                            <Button size="sm" variant="ghost" onClick={() => {
-                              setEditingQuestionId(q.question_id);
-                              setEditForm({ text: q.text, a: q.a, b: q.b, c: q.c, d: q.d, correct: q.correct });
-                            }}>Edit</Button>
+                            <p className="font-medium text-slate-800"><span className="mr-2 text-slate-400">{idx + 1}.</span>{q.text || q.question_text}</p>
+                            {q.question_id && (
+                              <Button size="sm" variant="ghost" onClick={() => {
+                                setEditingQuestionId(q.question_id);
+                                setEditForm({ text: q.text || q.question_text, a: q.a || q.option_a, b: q.b || q.option_b, c: q.c || q.option_c, d: q.d || q.option_d, correct: q.correct || q.correct_option });
+                              }}>Edit</Button>
+                            )}
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 pl-6">
-                            <div className={q.correct === 'A' ? 'font-bold text-emerald-600' : ''}>A: {q.a}</div>
-                            <div className={q.correct === 'B' ? 'font-bold text-emerald-600' : ''}>B: {q.b}</div>
-                            <div className={q.correct === 'C' ? 'font-bold text-emerald-600' : ''}>C: {q.c}</div>
-                            <div className={q.correct === 'D' ? 'font-bold text-emerald-600' : ''}>D: {q.d}</div>
+                            <div className={(q.correct || q.correct_option) === 'A' ? 'font-bold text-emerald-600 bg-emerald-50 rounded px-2' : 'px-2'}>A: {q.a || q.option_a}</div>
+                            <div className={(q.correct || q.correct_option) === 'B' ? 'font-bold text-emerald-600 bg-emerald-50 rounded px-2' : 'px-2'}>B: {q.b || q.option_b}</div>
+                            <div className={(q.correct || q.correct_option) === 'C' ? 'font-bold text-emerald-600 bg-emerald-50 rounded px-2' : 'px-2'}>C: {q.c || q.option_c}</div>
+                            <div className={(q.correct || q.correct_option) === 'D' ? 'font-bold text-emerald-600 bg-emerald-50 rounded px-2' : 'px-2'}>D: {q.d || q.option_d}</div>
                           </div>
                         </div>
                       )}

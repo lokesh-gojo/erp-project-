@@ -712,6 +712,15 @@ export const QuizInterface = () => {
                   <h2 className="text-lg font-medium text-foreground mb-4">
                     {question.text}
                   </h2>
+                  {question.image_data && (
+                    <div className="mb-6 flex justify-center">
+                      <img 
+                        src={question.image_data} 
+                        alt="Question Context" 
+                        className="max-h-64 rounded-lg border border-border shadow-sm"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6">
                     <span>Topic: {question.topic_title}</span>
                     {question.sub_topic_title && <span>• {question.sub_topic_title}</span>}

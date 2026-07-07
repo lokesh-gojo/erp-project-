@@ -618,7 +618,12 @@ exports.uploadQuestionsToTest = async (req, res) => {
       q.b || q.option_b || '',
       q.c || q.option_c || '',
       q.d || q.option_d || '',
-      q.correct || q.correct_option || 'A',
+      (() => {
+        let opt = String(q.correct || q.correct_option || 'A').toUpperCase().trim();
+        opt = opt.replace('OPTION_', '').replace('OPTION', '').trim();
+        opt = opt.charAt(0);
+        return ['A','B','C','D'].includes(opt) ? opt : 'A';
+      })(),
       q.mark || 1
     ]);
 

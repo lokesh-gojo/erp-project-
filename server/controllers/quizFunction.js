@@ -13,15 +13,15 @@ exports.getQuizQuestions = (req, res) => {
     return res.status(400).json({ error: 'Test ID is required' });
   }
 
-  const testQuery = `
-    SELECT t.test_id, t.title, t.description, t.subject, t.num_questions, 
-           t.duration_minutes, t.is_active, t.department_id, t.year, t.topic_id, t.sub_topic_id,
-           u.year as student_year, u.department_id as student_dept_id
-    FROM tests t
-    JOIN users u ON u.id = ?
-    WHERE t.test_id = ? AND t.is_active = 1 
-    AND t.department_id = u.department_id AND t.year = u.year
-  `;
+    const testQuery = `
+      SELECT t.test_id, t.title, t.description, t.subject, t.num_questions, 
+             t.duration_minutes, t.is_active, t.department_id, t.year, t.topic_id, t.sub_topic_id, t.type,
+             u.year as student_year, u.department_id as student_dept_id
+      FROM tests t
+      JOIN users u ON u.id = ?
+      WHERE t.test_id = ? AND t.is_active = 1 
+      AND (t.type = 'placement' OR (t.department_id = u.department_id AND t.year = u.year))
+    `;
 
   db.query(testQuery, [userId, testId], (err, testResults) => {
     if (err) {
@@ -36,7 +36,7 @@ exports.getQuizQuestions = (req, res) => {
 
     // Use only the questions explicitly assigned to this test (from test_questions table)
     const questionsQuery = `
-      SELECT q.question_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option, q.mark,
+      SELECT q.question_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option, q.mark, q.image_data,
              st.title as sub_topic_title, tp.title as topic_title
       FROM test_questions tq
       JOIN questions q ON tq.question_id = q.question_id
@@ -58,7 +58,8 @@ exports.getQuizQuestions = (req, res) => {
         options: [row.option_a, row.option_b, row.option_c, row.option_d],
         marks: row.mark || 1,
         sub_topic_title: row.sub_topic_title,
-        topic_title: row.topic_title
+        topic_title: row.topic_title,
+        image_data: row.image_data || null
       }));
 
       const sendResponse = (questionsArray) => {
