@@ -1638,10 +1638,9 @@ export const HODDashboard = () => {
         )}
       </div>
 
-      <div className="bg-orange-500 p-4 text-center">
-        <h2 className="uppercase text-xl text-white">
-          Developed By{" "}
-          <a href="https://www.nscet.org/ispin">Innovative Software Product Industry of NSCET</a>
+      <div className="bg-[#1a365d] p-4 text-center">
+        <h2 className="uppercase text-xs sm:text-sm font-semibold text-white tracking-wide">
+          Developed by Lokesh (lokesh-gojo) | PREP-TRACK
         </h2>
       </div>
     </div>

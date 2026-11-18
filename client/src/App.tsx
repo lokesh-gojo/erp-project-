@@ -44,7 +44,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<LoginRedirect />} />
-            <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
+            <Route element={<ProtectedRoute allowedRoles={["student", "faculty", "hod", "admin", "super-admin", "principal", "vice_principal"]} />}>
               <Route path="/student" element={<StudentDashboardPage />} />
             </Route>
             <Route element={<ProtectedRoute allowedRoles={["faculty"]} />}>
@@ -53,10 +53,10 @@ const App = () => (
             <Route element={<ProtectedRoute allowedRoles={["hod"]} />}>
               <Route path="/hod" element={<HODDashboardPage />} />
             </Route>
-            <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+            <Route element={<ProtectedRoute allowedRoles={["admin", "vice_principal"]} />}>
               <Route path="/admin" element={<AdminDashboardPage />} />
             </Route>
-            <Route element={<ProtectedRoute allowedRoles={["super-admin"]} />}>
+            <Route element={<ProtectedRoute allowedRoles={["super-admin", "principal"]} />}>
               <Route path="/super-admin" element={<SuperAdminDashboardPage />} />
             </Route>
             <Route element={<ProtectedRoute />}>

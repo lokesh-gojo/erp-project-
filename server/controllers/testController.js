@@ -145,7 +145,11 @@ exports.getTestsForStudent = (req, res) => {
       is_active: row.is_active,
       faculty_name: row.faculty_name,
       status: row.student_status || (row.is_active === 1 ? 'available' : 'inactive'),
-      score: row.score,
+      score: row.score !== null && row.score !== undefined 
+        ? (Number(row.score) > (row.num_questions || 1) 
+            ? Math.round((Number(row.score) / 100) * (row.num_questions || 1)) 
+            : Number(row.score))
+        : null,
       start_time: row.start_time,
       end_time: row.end_time
     }));
@@ -212,7 +216,11 @@ exports.getPlacementTestsForStudent = (req, res) => {
       test_type: row.test_type,
       faculty_name: row.faculty_name,
       status: row.student_status || (row.is_active === 1 ? 'available' : 'inactive'),
-      score: row.score,
+      score: row.score !== null && row.score !== undefined 
+        ? (Number(row.score) > (row.num_questions || 1) 
+            ? Math.round((Number(row.score) / 100) * (row.num_questions || 1)) 
+            : Number(row.score))
+        : null,
       start_time: row.start_time,
       end_time: row.end_time
     }));
@@ -636,9 +644,14 @@ exports.uploadQuestionsToTest = async (req, res) => {
     const firstInsertId = result.insertId;
     const insertedCount = result.affectedRows;
 
-    const testQuestionRows = [];
-    for (let i = 0; i < insertedCount; i++) {
-      testQuestionRows.push([test_id, firstInsertId + i]);
+    const testQuestionRows = (Array.isArray(result) && result.length > 0 && result[0].question_id)
+      ? result.map(r => [test_id, r.question_id])
+      : [];
+
+    if (testQuestionRows.length === 0) {
+      for (let i = 0; i < insertedCount; i++) {
+        testQuestionRows.push([test_id, firstInsertId + i]);
+      }
     }
 
     const insertTQQuery = 'INSERT INTO test_questions (test_id, question_id) VALUES ?';

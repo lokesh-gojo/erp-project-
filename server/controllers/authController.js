@@ -78,7 +78,7 @@ exports.login = (req, res) => {
           department: user.department,
           role_id: user.role_id,
           role_name: user.role_name
-        }, JWT_SECRET, { expiresIn: '2h' });
+        }, JWT_SECRET, { expiresIn: '7d' });
         res.json({
           token,
           user: {

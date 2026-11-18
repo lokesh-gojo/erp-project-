@@ -88,6 +88,12 @@ app.use('/api/quiz', require('./routes/quiz'));
 // Leaderboard routes
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 
+// Machine Learning & AI Intelligence routes
+app.use('/api/ml', require('./routes/ml'));
+
+// RAG (Retrieval-Augmented Generation) routes
+app.use('/api/rag', require('./routes/rag'));
+
 /* =====================================================
    HEALTH CHECK
 ===================================================== */

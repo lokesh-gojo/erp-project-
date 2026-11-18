@@ -1193,7 +1193,7 @@ export default function SuperAdminDashboardPage() {
       doc.setPage(i);
       doc.setDrawColor(26, 54, 93); doc.setLineWidth(0.2); doc.line(15, 282, 195, 282);
       doc.setTextColor(150, 150, 150); doc.setFontSize(8); doc.setFont("helvetica", "italic");
-      doc.text("Developed by Thichana Moorthy IV Year ECE of EASA", 105, 288, { align: "center" });
+      doc.text("Developed by Lokesh (lokesh-gojo) | PREP-TRACK", 105, 288, { align: "center" });
       doc.text(`Page ${i} of ${pageCount}`, 195, 288, { align: "right" });
     }
 

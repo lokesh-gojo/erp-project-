@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { Plus, BookOpen, Layers, CheckCircle2, Upload, Download, Info } from "lucide-react";
+import { Plus, BookOpen, Layers, CheckCircle2, Upload, Download, Info, Sparkles } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
@@ -32,6 +32,48 @@ export default function PlacementAdminUI() {
   const [editForm, setEditForm] = useState({
     text: "", a: "", b: "", c: "", d: "", correct: ""
   });
+
+  // AI Question Generator Modal State
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiDomain, setAiDomain] = useState("quant");
+  const [aiCount, setAiCount] = useState(5);
+  const [aiTargetCourseId, setAiTargetCourseId] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<any[]>([]);
+
+  const handleGenerateAIQuestions = async () => {
+    setAiGenerating(true);
+    try {
+      const token = localStorage.getItem("jwt_token");
+      const res = await fetch(`${API_BASE}/ml/generate-questions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          domain: aiDomain,
+          count: aiCount,
+          test_id: aiTargetCourseId ? Number(aiTargetCourseId) : null
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiGeneratedQuestions(data.questions);
+        if (aiTargetCourseId) {
+          alert(`Successfully generated and added ${data.questions.length} questions to the course!`);
+          fetchTopicsAndCourses();
+        }
+      } else {
+        alert(data.error || "Failed to generate questions");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error generating questions");
+    } finally {
+      setAiGenerating(false);
+    }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -346,6 +388,9 @@ export default function PlacementAdminUI() {
           <p className="text-slate-500">Create placement topics and courses that are always available to students.</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setAiModalOpen(true)} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-sm">
+            <Sparkles className="h-4 w-4 mr-2" /> AI Question Generator
+          </Button>
           <Button onClick={() => setTopicModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
             <Plus className="h-4 w-4 mr-2" /> New Topic
           </Button>
@@ -657,6 +702,103 @@ export default function PlacementAdminUI() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Question Generator Modal */}
+      {aiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl border border-slate-100 p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-600" /> AI Question & Distractor Generator
+                </h3>
+                <p className="text-xs text-slate-500">Automatically synthesize campus placement MCQs with verified distractors and explanations.</p>
+              </div>
+              <Button variant="ghost" onClick={() => setAiModalOpen(false)}>Close</Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Domain / Skill</label>
+                  <select 
+                    className="w-full text-sm border border-slate-200 rounded-md p-2 bg-white"
+                    value={aiDomain}
+                    onChange={(e) => setAiDomain(e.target.value)}
+                  >
+                    <option value="quant">Quantitative Aptitude</option>
+                    <option value="reasoning">Logical Reasoning</option>
+                    <option value="verbal">Verbal Ability & English</option>
+                    <option value="technical">Technical CS & Coding</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Number of Questions</label>
+                  <select 
+                    className="w-full text-sm border border-slate-200 rounded-md p-2 bg-white"
+                    value={aiCount}
+                    onChange={(e) => setAiCount(Number(e.target.value))}
+                  >
+                    <option value={3}>3 Questions</option>
+                    <option value={5}>5 Questions</option>
+                    <option value={10}>10 Questions</option>
+                    <option value={15}>15 Questions</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target Course (Optional)</label>
+                  <select 
+                    className="w-full text-sm border border-slate-200 rounded-md p-2 bg-white"
+                    value={aiTargetCourseId}
+                    onChange={(e) => setAiTargetCourseId(e.target.value)}
+                  >
+                    <option value="">Preview Only (Do not save)</option>
+                    {courses.map(c => (
+                      <option key={c.test_id} value={c.test_id}>{c.title}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <Button 
+                  onClick={handleGenerateAIQuestions} 
+                  disabled={aiGenerating}
+                  className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {aiGenerating ? "Synthesizing AI Questions..." : "Generate MCQs"}
+                </Button>
+              </div>
+
+              {/* Preview Generated Questions */}
+              {aiGeneratedQuestions.length > 0 && (
+                <div className="mt-6 space-y-4">
+                  <h4 className="text-sm font-bold text-slate-700">Generated MCQs Preview ({aiGeneratedQuestions.length})</h4>
+                  {aiGeneratedQuestions.map((q, idx) => (
+                    <Card key={idx} className="border-slate-200 bg-slate-50/50">
+                      <CardContent className="p-4 space-y-2">
+                        <p className="text-sm font-semibold text-slate-800">Q{idx + 1}. {q.text}</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pl-2">
+                          <span className={q.correct_option === 'A' ? 'font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded' : 'px-2 py-1'}>A: {q.option_a}</span>
+                          <span className={q.correct_option === 'B' ? 'font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded' : 'px-2 py-1'}>B: {q.option_b}</span>
+                          <span className={q.correct_option === 'C' ? 'font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded' : 'px-2 py-1'}>C: {q.option_c}</span>
+                          <span className={q.correct_option === 'D' ? 'font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded' : 'px-2 py-1'}>D: {q.option_d}</span>
+                        </div>
+                        {q.explanation && (
+                          <p className="text-[11px] text-slate-500 italic pt-1 border-t border-slate-100">
+                            💡 Explanation: {q.explanation}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

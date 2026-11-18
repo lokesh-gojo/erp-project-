@@ -228,13 +228,13 @@ export const LoginForm = () => {
                   </div>
                 </div>
 
-                {userDetails && userDetails.role && (
+                {userDetails && (userDetails.role || userDetails.role_name) && (
                   <div className="space-y-2.5">
                     <Label htmlFor="role" className="text-sm font-bold text-gray-700 ml-1">Role</Label>
                     <Input
                       id="role"
                       type="text"
-                      value={userDetails.role}
+                      value={((userDetails.role || userDetails.role_name) as string).toUpperCase()}
                       disabled
                       className="pl-4 py-4 bg-gray-100 border-gray-200 rounded-xl text-gray-500 font-bold opacity-80 cursor-not-allowed"
                     />
@@ -280,6 +280,37 @@ export const LoginForm = () => {
                 >
                   Sign In
                 </Button>
+
+                {/* Quick Student Access Helpers */}
+                <div className="pt-4 border-t border-gray-100 text-xs">
+                  <p className="font-semibold text-gray-600 mb-2">Quick Student Login:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFormData({ rollNo: 'student', password: '123' });
+                        fetchUserDetails('student');
+                      }}
+                      className="text-xs h-8 bg-blue-50/70 hover:bg-blue-100 border-blue-200 text-blue-700 font-semibold rounded-lg"
+                    >
+                      student (123)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFormData({ rollNo: '720523106001', password: '123' });
+                        fetchUserDetails('720523106001');
+                      }}
+                      className="text-xs h-8 bg-emerald-50/70 hover:bg-emerald-100 border-emerald-200 text-emerald-700 font-semibold rounded-lg"
+                    >
+                      Roll No: 720523106001 (123)
+                    </Button>
+                  </div>
+                </div>
               </form>
             ) : (
               <form className="space-y-3" onSubmit={handleSubmit}>

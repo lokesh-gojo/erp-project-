@@ -29,10 +29,10 @@ exports.getDashboardStats = (req, res) => {
         departments:  row.departments  || 0,
         faculty:      row.faculty      || 0,
         students:     row.students     || 0,
-        activeTests:  row.activeTests  || 0,
+        activeTests:  row.activeTests  ?? row.activetests ?? 0,
         reports:      row.reports      || 0,
-        avgScore:     row.avgScore     || 0,
-        totalTests:   row.totalTests   || 0,
+        avgScore:     row.avgScore     ?? row.avgscore ?? 0,
+        totalTests:   row.totalTests   ?? row.totaltests ?? 0,
       }
     });
   });

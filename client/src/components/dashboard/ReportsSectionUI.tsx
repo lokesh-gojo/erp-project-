@@ -893,7 +893,7 @@ const TestWiseReport = () => {
       doc.setTextColor(150, 150, 150);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
-      doc.text('Developed by Thichana Moorthy IV Year ECE of EASA', 105, 288, { align: 'center' });
+      doc.text(' DEPARTMENT OF ECE ', 105, 288, { align: 'center' });
       doc.text(`Page ${i} of ${pageCount}`, 195, 288, { align: 'right' });
     }
 

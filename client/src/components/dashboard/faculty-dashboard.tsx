@@ -8,6 +8,7 @@ import SidebarLayout from "../layout/SidebarLayout";
 import { TopicsSection } from "./faculty/Topic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 import { Leaderboard } from "../leaderboard/leaderboard";
@@ -123,6 +124,7 @@ const TestsSection = ({ tests, loading, error, onEdit, onDelete, onToggleStatus,
 };
 
 export const FacultyDashboard = () => {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("dashboard");
   const [createTestOpen, setCreateTestOpen] = useState(false);
   const [editTestOpen, setEditTestOpen] = useState(false);
@@ -1275,6 +1277,15 @@ export const FacultyDashboard = () => {
               <div>
                 <h2 className="text-xl font-semibold text-foreground">Welcome back, {profile?.name || "User"}!</h2>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/student')}
+                className="flex items-center gap-2 border-primary/50 text-secondary hover:bg-primary/10 font-semibold"
+              >
+                <Eye className="h-4 w-4" />
+                View Student Dashboard
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -2151,7 +2162,7 @@ export const FacultyDashboard = () => {
 
       <div className="bg-[#1a365d] p-4 text-center">
         <h2 className="uppercase text-xl text-white">
-          Developed By Thichana Moorthy IV Year ECE of EASA
+          DEPARTMENT OF  ECE 
         </h2>
       </div>
 

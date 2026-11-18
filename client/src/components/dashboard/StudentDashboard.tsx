@@ -2,14 +2,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatsCard } from "./stats-card";
-import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase, Activity } from "lucide-react";
+import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase, Activity, Sparkles, Bot, ArrowRight } from "lucide-react";
+import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase, Activity, Sparkles, Bot, ArrowRight, Layers, FileCheck } from "lucide-react";
 import Header from "./student/Header";
 import PlacementModeUI from "./PlacementModeUI";
-import SidebarLayout from "../layout/SidebarLayout";  
+import RAGStudyHubUI from "./RAGStudyHubUI";
+import ResumeATSScannerUI from "./ResumeATSScannerUI";
+import MockInterviewUI from "./MockInterviewUI";
+import SidebarLayout from "../layout/SidebarLayout";
 import { StudentReportsSection } from "./student/StudentReportsSection";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/components/auth/auth-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +86,10 @@ const navItems = [
   { id: "dashboard", label: "Dashboard", icon: <BarChart3 className="h-5 w-5" /> },
   { id: "quizzes", label: "My Quizzes", icon: <BookOpen className="h-5 w-5" /> },
   { id: "placement", label: "Placement Mode", icon: <Briefcase className="h-5 w-5" /> },
+  { id: "placement", label: "Placement Mode", icon: <Briefcase className="h-5 w-5 text-amber-600" /> },
+  { id: "resume-scanner", label: "AI Resume & ATS", icon: <FileCheck className="h-5 w-5 text-indigo-600" /> },
+  { id: "mock-interview", label: "AI Mock Interview", icon: <Bot className="h-5 w-5 text-teal-600" /> },
+  { id: "rag-study", label: "AI Study & RAG Hub", icon: <Sparkles className="h-5 w-5 text-purple-600" /> },
   { id: "leaderboard", label: "Leaderboard", icon: <Trophy className="h-5 w-5" /> },
   { id: "reports", label: "Reports", icon: <FileText className="h-5 w-5" /> },
   { id: "profile", label: "Profile", icon: <User className="h-5 w-5" /> },
@@ -155,7 +164,7 @@ const studentTestsSection = ({ tests, navigate, isMissedView = false }: { tests:
                   <div className="text-2xl font-black text-gray-900">{test.score ?? 0}%</div>
                 </div>
               ) : (
-                <Button 
+                <Button
                   onClick={() => navigate(`/quiz/${test.test_id}`)}
                   disabled={test.is_active === 0 || isMissedView}
                   className="w-full md:w-auto bg-[#FFD166] hover:bg-[#e6bb5b] text-black font-bold rounded-xl px-8"
@@ -184,6 +193,7 @@ interface Profile {
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [activeSection, setActiveSection] = useState("dashboard");
 
   // Profile state
@@ -518,6 +528,24 @@ const StudentDashboard = () => {
       {/* Header */}
       <Header />
 
+      {role && role !== 'student' && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between text-xs sm:text-sm text-amber-900 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>You are previewing the <strong>Student Dashboard</strong> as <strong>{role.toUpperCase()}</strong>.</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(role === 'faculty' ? '/faculty' : role === 'hod' ? '/hod' : role === 'super-admin' ? '/super-admin' : '/admin')}
+            className="h-7 text-xs bg-white border-amber-300 hover:bg-amber-100 text-amber-900 font-medium"
+          >
+            Return to {role.charAt(0).toUpperCase() + role.slice(1)} Dashboard
+          </Button>
+        </div>
+      )}
+
+
       <div className="w-full max-w-[1800px] mx-auto p-4 md:p-8 space-y-6">
         {/* Welcome Message */}
         <Card>
@@ -618,9 +646,9 @@ const StudentDashboard = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={[...categorizedTests.completed].reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                        <XAxis dataKey="title" tick={{fontSize: 12}} tickFormatter={(value) => value.substring(0, 10) + '...'} />
-                        <YAxis domain={[0, 100]} tick={{fontSize: 12}} />
-                        <RechartsTooltip 
+                        <XAxis dataKey="title" tick={{ fontSize: 12 }} tickFormatter={(value) => value.substring(0, 10) + '...'} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
+                        <RechartsTooltip
                           contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         />
                         <Line type="monotone" dataKey="score" stroke="#FFD166" strokeWidth={3} dot={{ r: 4, fill: "#262628" }} activeDot={{ r: 6 }} />
@@ -655,250 +683,324 @@ const StudentDashboard = () => {
                       </div>
                     ))}
                     {categorizedTests.available.length === 0 && (
-                       <div className="text-sm text-muted-foreground text-center py-8">
-                         <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                         No pending assignments
-                       </div>
+                      <div className="text-sm text-muted-foreground text-center py-8">
+                        <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                        No pending assignments
+                      </div>
                     )}
                   </div>
                 </CardContent>
               </Card>
             </div>
+            {/* AI Features Showcase Banner Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Card 1: AI Study & RAG Hub */}
+              <div className="bg-gradient-to-br from-purple-900 to-indigo-950 text-white rounded-2xl p-5 shadow-sm border border-purple-800/40 flex flex-col justify-between">
+                <div className="space-y-2 mb-4">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-200 text-[11px] font-semibold">
+                    <Sparkles className="h-3 w-3 text-purple-300" /> Study & RAG Hub
+                  </div>
+                  <h4 className="text-base font-bold">Coursework AI Assistant & Flashcards</h4>
+                  <p className="text-xs text-purple-200/80 leading-relaxed">
+                    Upload syllabus & question papers to clear doubts with page citations and practice active recall flashcards.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setActiveSection("rag-study")}
+                  className="w-full bg-white hover:bg-purple-50 text-purple-950 font-bold text-xs rounded-xl shadow-xs"
+                >
+                  Open Study Hub <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+
+              {/* Card 2: AI Resume & ATS Scanner */}
+              <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-sm border border-indigo-800/40 flex flex-col justify-between">
+                <div className="space-y-2 mb-4">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 text-[11px] font-semibold">
+                    <FileCheck className="h-3 w-3 text-indigo-300" /> Resume Scanner
+                  </div>
+                  <h4 className="text-base font-bold">AI Resume & ATS Placement Match</h4>
+                  <p className="text-xs text-indigo-200/80 leading-relaxed">
+                    Audit CV keyword density, detect missing Tier 1 product skills, and benchmark your ATS score.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setActiveSection("resume-scanner")}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-xs"
+                >
+                  Scan My Resume <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+
+              {/* Card 3: AI Mock Interview Simulator */}
+              <div className="bg-gradient-to-br from-emerald-950 to-teal-950 text-white rounded-2xl p-5 shadow-sm border border-teal-800/40 flex flex-col justify-between">
+                <div className="space-y-2 mb-4">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-200 text-[11px] font-semibold">
+                    <Bot className="h-3 w-3 text-teal-300" /> Mock Interview
+                  </div>
+                  <h4 className="text-base font-bold">Live AI Technical & HR Screening</h4>
+                  <p className="text-xs text-teal-200/80 leading-relaxed">
+                    Simulate one-on-one interview rounds with instant rubric evaluation (1-10) and benchmark model answers.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setActiveSection("mock-interview")}
+                  className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-xl shadow-xs"
+                >
+                  Start Mock Interview <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            </div>
           </div>
         )}
-        {activeSection === "quizzes" && (
-          <Card className="min-h-screen rounded-2xl border-none shadow-sm bg-white">
-            <CardHeader className="border-b border-gray-100 pb-6 mb-6">
-              <CardTitle className="text-2xl font-bold">My Quizzes</CardTitle>
-              <CardDescription className="text-base">
-                View all your quizzes and performance
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Tabs defaultValue="available" className="w-full">
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="available">Available</TabsTrigger>
-                    <TabsTrigger value="completed">Completed</TabsTrigger>
-                    <TabsTrigger value="missed">Missed</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="available">
-                    {studentTestsSection({ tests: categorizedTests.available, navigate })}
-                  </TabsContent>
-                  <TabsContent value="completed">
-                    {studentTestsSection({ tests: categorizedTests.completed, navigate })}
-                  </TabsContent>
-                  <TabsContent value="missed">
-                    {studentTestsSection({ tests: categorizedTests.missed, navigate, isMissedView: true })}
-                  </TabsContent>
-                </Tabs>
-            </CardContent>
-          </Card>
-        )}
-        {activeSection === "leaderboard" && (
-          <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden min-h-screen">
-            <div className="h-2 bg-[#FFD166] w-full"></div>
-            <CardHeader className="border-b border-gray-100 pb-6 mb-6 pt-8 px-8">
-              <CardTitle className="text-2xl font-bold">Class Leaderboard</CardTitle>
-              <CardDescription className="text-base">
-                See where you stand among your peers
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-8 pb-8 pt-0">
-              <Leaderboard autoFetch={true} hideHeader={true} />
-            </CardContent>
-          </Card>
-        )}
+                            {activeSection === "quizzes" && (
+                              <Card className="min-h-screen rounded-2xl border-none shadow-sm bg-white">
+                                <CardHeader className="border-b border-gray-100 pb-6 mb-6">
+                                  <CardTitle className="text-2xl font-bold">My Quizzes</CardTitle>
+                                  <CardDescription className="text-base">
+                                    View all your quizzes and performance
+                                  </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                  <Tabs defaultValue="available" className="w-full">
+                                    <TabsList className="mb-4">
+                                      <TabsTrigger value="available">Available</TabsTrigger>
+                                      <TabsTrigger value="completed">Completed</TabsTrigger>
+                                      <TabsTrigger value="missed">Missed</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="available">
+                                      {studentTestsSection({ tests: categorizedTests.available, navigate })}
+                                    </TabsContent>
+                                    <TabsContent value="completed">
+                                      {studentTestsSection({ tests: categorizedTests.completed, navigate })}
+                                    </TabsContent>
+                                    <TabsContent value="missed">
+                                      {studentTestsSection({ tests: categorizedTests.missed, navigate, isMissedView: true })}
+                                    </TabsContent>
+                                  </Tabs>
+                                </CardContent>
+                              </Card>
+                            )}
+                            {activeSection === "leaderboard" && (
+                              <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden min-h-screen">
+                                <div className="h-2 bg-[#FFD166] w-full"></div>
+                                <CardHeader className="border-b border-gray-100 pb-6 mb-6 pt-8 px-8">
+                                  <CardTitle className="text-2xl font-bold">Class Leaderboard</CardTitle>
+                                  <CardDescription className="text-base">
+                                    See where you stand among your peers
+                                  </CardDescription>
+                                </CardHeader>
+                                <CardContent className="px-8 pb-8 pt-0">
+                                  <Leaderboard autoFetch={true} hideHeader={true} />
+                                </CardContent>
+                              </Card>
+                            )}
 
-        {activeSection === "reports" && <StudentReportsSection completedTests={categorizedTests.completed} profile={profile} />}
+                            {activeSection === "reports" && <StudentReportsSection completedTests={categorizedTests.completed} profile={profile} />}
 
-        {activeSection === "placement" && (
-          <PlacementModeUI />
-        )}
+                            {activeSection === "placement" && (
+                              <PlacementModeUI />
+                            )}
 
-        {activeSection === "profile" && (
-          <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden">
-            <div className="h-32 bg-[#FFD166] w-full"></div>
-            <CardContent className="px-8 pb-8 pt-0">
+                            {activeSection === "rag-study" && (
+                              <RAGStudyHubUI />
+                            )}
+
+                            {activeSection === "resume-scanner" && (
+                              <ResumeATSScannerUI />
+                            )}
+
+                            {activeSection === "mock-interview" && (
+                              <MockInterviewUI />
+                            )}
+
+                            {activeSection === "profile" && (
+                              <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden">
+                                <div className="h-32 bg-[#FFD166] w-full"></div>
+                                <CardContent className="px-8 pb-8 pt-0">
 
 
-              {profileLoading ? (
-                <div className="flex justify-center items-center py-12">
-                  <div className="text-gray-500">Loading profile...</div>
-                </div>
-              ) : profileError ? (
-                <div className="flex justify-center items-center py-12 text-red-500">
-                  <p>{profileError}</p>
-                </div>
-              ) : profile ? (
-                <div className="space-y-8">
-                  {/* Profile Header */}
-                  <div className="flex flex-col sm:flex-row items-center sm:items-end space-y-4 sm:space-y-0 sm:space-x-6 -mt-16">
-                    <Avatar className="h-32 w-32 border-4 border-white shadow-md">
-                      <AvatarFallback className="text-4xl bg-[#262628] text-white">
-                        {profile.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'ST'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1 text-center sm:text-left mb-2">
-                      <h3 className="text-3xl font-extrabold text-gray-900">{profile.name}</h3>
-                      <p className="text-muted-foreground font-medium">{profile.role} • {profile.department}</p>
-                    </div>
-                  </div>
+                                  {profileLoading ? (
+                                    <div className="flex justify-center items-center py-12">
+                                      <div className="text-gray-500">Loading profile...</div>
+                                    </div>
+                                  ) : profileError ? (
+                                    <div className="flex justify-center items-center py-12 text-red-500">
+                                      <p>{profileError}</p>
+                                    </div>
+                                  ) : profile ? (
+                                    <div className="space-y-8">
+                                      {/* Profile Header */}
+                                      <div className="flex flex-col sm:flex-row items-center sm:items-end space-y-4 sm:space-y-0 sm:space-x-6 -mt-16">
+                                        <Avatar className="h-32 w-32 border-4 border-white shadow-md">
+                                          <AvatarFallback className="text-4xl bg-[#262628] text-white">
+                                            {profile.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'ST'}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="space-y-1 text-center sm:text-left mb-2">
+                                          <h3 className="text-3xl font-extrabold text-gray-900">{profile.name}</h3>
+                                          <p className="text-muted-foreground font-medium">{profile.role} • {profile.department}</p>
+                                        </div>
+                                      </div>
 
-                  {/* Profile Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
-                    <div className="space-y-5 bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                      <h4 className="text-lg font-bold text-[#262628] flex items-center gap-2"><User className="h-5 w-5 text-[#FFD166]"/> Personal Information</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
-                          <p className="text-sm">{profile.name}</p>
+                                      {/* Profile Information */}
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
+                                        <div className="space-y-5 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                                          <h4 className="text-lg font-bold text-[#262628] flex items-center gap-2"><User className="h-5 w-5 text-[#FFD166]" /> Personal Information</h4>
+                                          <div className="space-y-3">
+                                            <div>
+                                              <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
+                                              <p className="text-sm">{profile.name}</p>
+                                            </div>
+                                            <div>
+                                              <Label className="text-sm font-medium text-muted-foreground">Email Address</Label>
+                                              <p className="text-sm">{profile.email}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-5 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                                          <h4 className="text-lg font-bold text-[#262628] flex items-center gap-2"><BookOpen className="h-5 w-5 text-[#FFD166]" /> Academic Information</h4>
+                                          <div className="space-y-3">
+                                            <div>
+                                              <Label className="text-sm font-medium text-muted-foreground">Role</Label>
+                                              <p className="text-sm">{profile.role}</p>
+                                            </div>
+                                            <div>
+                                              <Label className="text-sm font-medium text-muted-foreground">Department</Label>
+                                              <p className="text-sm">{profile.department}</p>
+                                            </div>
+
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Action Buttons */}
+                                      <div className="flex flex-col sm:flex-row gap-4 pt-8 border-t border-gray-100">
+                                        <Button onClick={handleEditProfile} className="bg-[#262628] hover:bg-black text-white rounded-xl">
+                                          <Edit className="h-4 w-4 mr-2" />
+                                          Edit Profile
+                                        </Button>
+                                        <Button variant="outline" onClick={() => setShowResetPasswordModal(true)} className="rounded-xl border-gray-200">
+                                          <FileText className="h-4 w-4 mr-2" />
+                                          Change Password
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="text-center py-12">
+                                      <p className="text-gray-500">No profile data available</p>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
                         </div>
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Email Address</Label>
-                          <p className="text-sm">{profile.email}</p>
+
+                        {/* Edit Profile Modal */}
+                        <Dialog open={showEditProfileModal} onOpenChange={setShowEditProfileModal}>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Edit Profile</DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={handleProfileSubmit} className="space-y-4">
+                              <div>
+                                <Label htmlFor="name">Full Name</Label>
+                                <Input
+                                  id="name"
+                                  type="text"
+                                  value={profileData.name}
+                                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                                  placeholder="Enter your full name"
+                                />
+                                {profileErrors.name && <p className="text-red-500 text-sm mt-1">{profileErrors.name}</p>}
+                              </div>
+                              <div>
+                                <Label htmlFor="email">Email Address</Label>
+                                <Input
+                                  id="email"
+                                  type="email"
+                                  value={profileData.email}
+                                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                                  placeholder="Enter your email address"
+                                />
+                                {profileErrors.email && <p className="text-red-500 text-sm mt-1">{profileErrors.email}</p>}
+                              </div>
+
+                              <div className="flex gap-2 pt-4">
+                                <Button type="submit" disabled={profileSubmitting}>
+                                  {profileSubmitting ? 'Updating...' : 'Update Profile'}
+                                </Button>
+                                <Button type="button" variant="outline" onClick={() => setShowEditProfileModal(false)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+
+                        {/* Reset Password Modal */}
+                        <Dialog open={showResetPasswordModal} onOpenChange={setShowResetPasswordModal}>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Change Password</DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                              <div>
+                                <Label htmlFor="currentPassword">Current Password</Label>
+                                <Input
+                                  id="currentPassword"
+                                  type="password"
+                                  value={passwordData.currentPassword}
+                                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                                  placeholder="Enter current password"
+                                />
+                                {passwordErrors.currentPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.currentPassword}</p>}
+                              </div>
+                              <div>
+                                <Label htmlFor="newPassword">New Password</Label>
+                                <Input
+                                  id="newPassword"
+                                  type="password"
+                                  value={passwordData.newPassword}
+                                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                                  placeholder="Enter new password"
+                                />
+                                {passwordErrors.newPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.newPassword}</p>}
+                              </div>
+                              <div>
+                                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                                <Input
+                                  id="confirmPassword"
+                                  type="password"
+                                  value={passwordData.confirmPassword}
+                                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                                  placeholder="Confirm new password"
+                                />
+                                {passwordErrors.confirmPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.confirmPassword}</p>}
+                              </div>
+                              <div className="flex gap-2 pt-4">
+                                <Button type="submit" disabled={passwordSubmitting}>
+                                  {passwordSubmitting ? 'Updating...' : 'Change Password'}
+                                </Button>
+                                <Button type="button" variant="outline" onClick={() => setShowResetPasswordModal(false)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+
+                        <div className='bg-[#1a365d] p-4 text-center shrink-0'>
+                          <h2 className='uppercase text-xl text-white'>
+                            DEPARTMENT OF ECE
+                          </h2>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-5 bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                      <h4 className="text-lg font-bold text-[#262628] flex items-center gap-2"><BookOpen className="h-5 w-5 text-[#FFD166]"/> Academic Information</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Role</Label>
-                          <p className="text-sm">{profile.role}</p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Department</Label>
-                          <p className="text-sm">{profile.department}</p>
-                        </div>
-
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-4 pt-8 border-t border-gray-100">
-                    <Button onClick={handleEditProfile} className="bg-[#262628] hover:bg-black text-white rounded-xl">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Profile
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowResetPasswordModal(true)} className="rounded-xl border-gray-200">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Change Password
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">No profile data available</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Edit Profile Modal */}
-      <Dialog open={showEditProfileModal} onOpenChange={setShowEditProfileModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleProfileSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                value={profileData.name}
-                onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                placeholder="Enter your full name"
-              />
-              {profileErrors.name && <p className="text-red-500 text-sm mt-1">{profileErrors.name}</p>}
-            </div>
-            <div>
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={profileData.email}
-                onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                placeholder="Enter your email address"
-              />
-              {profileErrors.email && <p className="text-red-500 text-sm mt-1">{profileErrors.email}</p>}
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button type="submit" disabled={profileSubmitting}>
-                {profileSubmitting ? 'Updating...' : 'Update Profile'}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setShowEditProfileModal(false)}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reset Password Modal */}
-      <Dialog open={showResetPasswordModal} onOpenChange={setShowResetPasswordModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                placeholder="Enter current password"
-              />
-              {passwordErrors.currentPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.currentPassword}</p>}
-            </div>
-            <div>
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={passwordData.newPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                placeholder="Enter new password"
-              />
-              {passwordErrors.newPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.newPassword}</p>}
-            </div>
-            <div>
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                placeholder="Confirm new password"
-              />
-              {passwordErrors.confirmPassword && <p className="text-red-500 text-sm mt-1">{passwordErrors.confirmPassword}</p>}
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button type="submit" disabled={passwordSubmitting}>
-                {passwordSubmitting ? 'Updating...' : 'Change Password'}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setShowResetPasswordModal(false)}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <div className='bg-[#1a365d] p-4 text-center shrink-0'>
-        <h2 className='uppercase text-xl text-white'>
-          Developed By Thichana Moorthy IV Year ECE of EASA
-        </h2>
-      </div>
-    </SidebarLayout>
-  );
+                      </SidebarLayout>
+                      );
 };
 
-export default StudentDashboard;
+                      export default StudentDashboard;

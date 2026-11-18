@@ -1,7 +1,7 @@
 {
-  "name": "iqarena-server",
+  "name": "preptrack-server",
   "version": "1.0.0",
-  "description": "Backend server for IQARENA project using Express and MySQL.",
+  "description": "Backend API server for PREP-TRACK Examination & Placement Platform.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,20 +9,22 @@
   },
   "keywords": [
     "express",
-    "mysql",
-    "iqarena",
+    "postgres",
+    "preptrack",
     "backend"
   ],
-  "author": "",
+  "author": "Lokesh (lokesh-gojo) <lokesh2005c@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "bcryptjs": "^3.0.2",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
     "mysql": "^2.18.1",
-    "mysql2": "^3.22.5"
+    "mysql2": "^3.22.5",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

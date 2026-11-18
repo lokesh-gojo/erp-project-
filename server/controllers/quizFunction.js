@@ -348,17 +348,20 @@ function calculateAndSaveScore(student_test_id, userId, res) {
       endTime = new Date(startTime.getTime() + maxAllowedTimeMs);
     }
 
-    // Calculate score: Only count correct answers for questions that belong to this test
+    // Calculate score: Only count correct answers for questions in this test session
     const scoreQuery = `
       SELECT 
-        (SELECT COUNT(DISTINCT question_id) FROM test_questions WHERE test_id = ?) as total_test_questions,
+        COALESCE(
+          NULLIF((SELECT COUNT(DISTINCT question_id) FROM test_questions WHERE test_id = ?), 0),
+          NULLIF((SELECT COUNT(DISTINCT question_id) FROM student_answers WHERE student_test_id = ?), 0),
+          1
+        ) as total_test_questions,
         COUNT(DISTINCT sa.question_id) as correct_count
       FROM student_answers sa
-      INNER JOIN test_questions tq ON sa.question_id = tq.question_id
-      WHERE sa.student_test_id = ? AND sa.is_correct = 1 AND tq.test_id = ?
+      WHERE sa.student_test_id = ? AND sa.is_correct = 1
     `;
 
-    db.query(scoreQuery, [test_id, student_test_id, test_id], (err, scoreResults) => {
+    db.query(scoreQuery, [test_id, student_test_id, student_test_id], (err, scoreResults) => {
       if (err) {
         console.error('Score calculation error:', err);
         return res.status(500).json({ error: 'Score calculation error' });

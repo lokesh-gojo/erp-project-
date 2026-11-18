@@ -1,4 +1,6 @@
 	const db = require('../config/conn');
+	const { uploadQuestionImage, supabase } = require('../config/supabase');
+	const fs = require('fs');
 
 	exports.getTopics = (req, res) => {
 		const sql = `
@@ -80,13 +82,23 @@
 	});
 };
 
-exports.updateQuestion = (req, res) => {
+exports.updateQuestion = async (req, res) => {
   	const { question_id } = req.params;
   	const { text, a, b, c, d, correct } = req.body;
   	let image_data = req.body.image_data;
   	
   	if (req.file) {
-  	  image_data = req.protocol + '://' + req.get('host') + '/uploads/' + req.file.filename;
+      if (supabase) {
+        try {
+          const fileBuffer = fs.readFileSync(req.file.path);
+          image_data = await uploadQuestionImage(fileBuffer, req.file.originalname, req.file.mimetype);
+        } catch (e) {
+          console.warn('Supabase storage upload failed, using local file:', e.message);
+          image_data = req.protocol + '://' + req.get('host') + '/uploads/' + req.file.filename;
+        }
+      } else {
+        image_data = req.protocol + '://' + req.get('host') + '/uploads/' + req.file.filename;
+      }
   	}
 
   	if (!question_id || !text || a == null || b == null || c == null || d == null || correct == null) {
@@ -240,11 +252,21 @@ exports.getQuestionsBySubTopic = (req, res) => {
 };
 
 
-exports.addQuestion = (req, res) => {
+exports.addQuestion = async (req, res) => {
   	const { sub_topic_id, text, a, b, c, d, correct, user_id, marks } = req.body;
   	let image_data = req.body.image_data;
   	if (req.file) {
-  	  image_data = req.protocol + '://' + req.get('host') + '/uploads/' + req.file.filename;
+      if (supabase) {
+        try {
+          const fileBuffer = fs.readFileSync(req.file.path);
+          image_data = await uploadQuestionImage(fileBuffer, req.file.originalname, req.file.mimetype);
+        } catch (e) {
+          console.warn('Supabase storage upload failed, using local file:', e.message);
+          image_data = req.protocol + '://' + req.get('host') + '/uploads/' + req.file.filename;
+        }
+      } else {
+        image_data = req.protocol + '://' + req.get('host') + '/uploads/' + req.file.filename;
+      }
   	}
 
   	const userId = user_id || req.user?.id; 
