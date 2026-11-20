@@ -112,6 +112,25 @@ The system enforces strict permission boundaries based on user roles:
 - Export student rosters and score sheets directly to `.csv` or `.xlsx`.
 - Instant PDF report generation summarizing student performance cards and batch scorecards via `jspdf`.
 
+### 8. IEEE Cognitive Diagnostics & Adaptive Learning Suite
+- **2PL Item Response Theory (IRT)**: Psychometrically grounded estimation of student latent ability trait $\theta \in [-3, +3]$ and item difficulty/discrimination.
+- **Computerized Adaptive Testing (CAT)**: Dynamic item selection using Maximum Fisher Information $I(\theta)$, reducing question count while maximizing measurement accuracy.
+- **Bloom's Revised Cognitive Taxonomy**: Automated NLP classification of question stems across 6 cognitive tiers ($L_1$ Remembering to $L_6$ Creating) with a Cognitive Depth Index (CDI).
+- **NBA Outcome-Based Education (OBE)**: Direct mapping to Program Outcomes (PO1-PO12) with one-click printable academic assessment transcripts for accreditation compliance.
+
+### 9. Explainable AI (XAI) Placement Readiness & Career Trajectory Forecaster
+- **SHAP-Style Feature Attributions**: Mathematical breakdown of student strengths and gap penalties across Coding, Quantitative Aptitude, Logical Reasoning, and Verbal Articulation.
+- **Corporate Recruiter Matchmaking**: Multi-tier placement probability for Tier 1 Super Dream (Amazon, Zoho), Tier 2 Specialist (Freshworks, Virtusa), and Tier 3 IT Services (TCS, Infosys).
+
+### 10. Autonomous RAG AI Agent & Study Hub
+- Grounded syllabus and past university question paper assistant with hybrid BM25 and vector embeddings.
+- Automatic active recall flashcard generation and exam cheat-sheet summaries.
+
+### 11. Search Engine Optimization (SEO) & Generative Engine Optimization (GEO)
+- Comprehensive Schema.org JSON-LD (`WebApplication`, `EducationalOrganization`, `ScholarlyArticle`, `FAQPage`).
+- Regional and geographic metadata (`geo.region`, `geo.placename`, `geo.position`, `ICBM`) for Coimbatore / EASA College.
+- Industry-standard `llms.txt` file optimizing platform discovery for AI search engines (Perplexity, SearchGPT, Gemini).
+
 ---
 
 ## 💻 Technology Stack
@@ -286,12 +305,14 @@ The database is built on relational integrity in MySQL. Key tables include:
 - `POST /agent/interact` - ReAct multi-step autonomous agent deliberation with reasoning steps and citations.
 
 ### Placement & AI ML Intelligence (`/api/ml`)
-- `POST /predict-placement` - Tier 1/2/3 placement probability prediction and salary estimation.
-- `POST /diagnose-weak-areas` - Adaptive diagnostic assessment identifying weak conceptual areas.
-- `POST /forecast-score` - Performance trajectory forecasting.
+- `GET /placement-intelligence` - Placement probability, company tier, and gap analysis for authenticated student.
+- `GET /ieee-cognitive-profile` - Comprehensive IEEE diagnostic profile (2PL-IRT ability $\theta$, Bloom L1-L6 radar, XAI attributions, NBA PO1-PO12 mapping).
+- `POST /classify-bloom` - Natural language question stem classification into Bloom Revised levels (L1-L6).
+- `POST /cat-next-item` - Real-time 2PL-IRT Computerized Adaptive Testing (CAT) item selection via Maximum Fisher Information.
+- `POST /evaluate-integrity` - Exam pacing, completion speed, and behavioral malpractice detection.
 - `POST /scan-resume` - ATS resume scanner with score (0-100), placement match, and keyword analysis.
-- `POST /mock-interview/generate-question` - Generate technical CS or HR mock interview question.
-- `POST /mock-interview/evaluate-response` - Rubric-based scoring (1-10) with model answer and improvement tips.
+- `POST /interview/start` - Initiate interactive AI mock interview session.
+- `POST /interview/evaluate` - Rubric-based scoring (1-10) with benchmark model answer and personalized feedback.
 
 ---
 
