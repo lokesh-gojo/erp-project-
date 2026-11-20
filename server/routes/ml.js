@@ -27,5 +27,10 @@ router.post('/scan-resume', upload.single('file'), mlController.scanResume);
 router.post('/interview/start', mlController.startInterview);
 router.post('/interview/evaluate', mlController.evaluateInterviewResponse);
 
+// IEEE Cognitive & Adaptive Intelligence Suite
+router.get('/ieee-cognitive-profile', mlController.getIEEECognitiveProfile);
+router.post('/classify-bloom', mlController.classifyBloomLevel);
+router.post('/cat-next-item', mlController.getCatNextItem);
+
 module.exports = router;
 

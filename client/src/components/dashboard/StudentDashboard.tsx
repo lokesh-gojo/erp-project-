@@ -2,13 +2,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatsCard } from "./stats-card";
-import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase, Activity, Sparkles, Bot, ArrowRight } from "lucide-react";
-import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase, Activity, Sparkles, Bot, ArrowRight, Layers, FileCheck } from "lucide-react";
+import { BookOpen, Clock, Trophy, User, Play, Pause, CheckCircle, Users, BarChart3, Eye, Edit, FileText, Target, Calendar, Briefcase, Activity, Sparkles, Bot, ArrowRight, Layers, FileCheck, Brain } from "lucide-react";
 import Header from "./student/Header";
 import PlacementModeUI from "./PlacementModeUI";
 import RAGStudyHubUI from "./RAGStudyHubUI";
 import ResumeATSScannerUI from "./ResumeATSScannerUI";
 import MockInterviewUI from "./MockInterviewUI";
+import { IEEECognitiveHubUI } from "./IEEECognitiveHubUI";
 import SidebarLayout from "../layout/SidebarLayout";
 import { StudentReportsSection } from "./student/StudentReportsSection";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
@@ -85,7 +85,7 @@ const formatDuration = (timeLimit: number) => {
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: <BarChart3 className="h-5 w-5" /> },
   { id: "quizzes", label: "My Quizzes", icon: <BookOpen className="h-5 w-5" /> },
-  { id: "placement", label: "Placement Mode", icon: <Briefcase className="h-5 w-5" /> },
+  { id: "ieee-cognitive", label: "IEEE Cognitive Suite", icon: <Brain className="h-5 w-5 text-blue-600" /> },
   { id: "placement", label: "Placement Mode", icon: <Briefcase className="h-5 w-5 text-amber-600" /> },
   { id: "resume-scanner", label: "AI Resume & ATS", icon: <FileCheck className="h-5 w-5 text-indigo-600" /> },
   { id: "mock-interview", label: "AI Mock Interview", icon: <Bot className="h-5 w-5 text-teal-600" /> },
@@ -693,8 +693,28 @@ const StudentDashboard = () => {
               </Card>
             </div>
             {/* AI Features Showcase Banner Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Card 1: AI Study & RAG Hub */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: IEEE Cognitive & Adaptive Suite */}
+              <div className="bg-gradient-to-br from-blue-950 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-sm border border-blue-800/40 flex flex-col justify-between">
+                <div className="space-y-2 mb-4">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-200 text-[11px] font-semibold">
+                    <Brain className="h-3 w-3 text-blue-300" /> IEEE Cognitive Suite
+                  </div>
+                  <h4 className="text-base font-bold">Bloom's Taxonomy & Adaptive CAT</h4>
+                  <p className="text-xs text-blue-200/80 leading-relaxed">
+                    Evaluate cognitive depth (L1–L6), test real-time 2PL-IRT ability trait (θ), and view XAI placement attribution radar.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setActiveSection("ieee-cognitive")}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-xs"
+                >
+                  Explore Cognitive Suite <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+
+              {/* Card 2: AI Study & RAG Hub */}
               <div className="bg-gradient-to-br from-purple-900 to-indigo-950 text-white rounded-2xl p-5 shadow-sm border border-purple-800/40 flex flex-col justify-between">
                 <div className="space-y-2 mb-4">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-200 text-[11px] font-semibold">
@@ -714,7 +734,7 @@ const StudentDashboard = () => {
                 </Button>
               </div>
 
-              {/* Card 2: AI Resume & ATS Scanner */}
+              {/* Card 3: AI Resume & ATS Scanner */}
               <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-sm border border-indigo-800/40 flex flex-col justify-between">
                 <div className="space-y-2 mb-4">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 text-[11px] font-semibold">
@@ -734,7 +754,7 @@ const StudentDashboard = () => {
                 </Button>
               </div>
 
-              {/* Card 3: AI Mock Interview Simulator */}
+              {/* Card 4: AI Mock Interview Simulator */}
               <div className="bg-gradient-to-br from-emerald-950 to-teal-950 text-white rounded-2xl p-5 shadow-sm border border-teal-800/40 flex flex-col justify-between">
                 <div className="space-y-2 mb-4">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-200 text-[11px] font-semibold">
@@ -800,6 +820,10 @@ const StudentDashboard = () => {
                             )}
 
                             {activeSection === "reports" && <StudentReportsSection completedTests={categorizedTests.completed} profile={profile} />}
+
+                            {activeSection === "ieee-cognitive" && (
+                              <IEEECognitiveHubUI />
+                            )}
 
                             {activeSection === "placement" && (
                               <PlacementModeUI />

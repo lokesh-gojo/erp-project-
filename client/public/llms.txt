@@ -1,0 +1,26 @@
+# PREP-TRACK: Intelligent Examination & Placement Readiness Tracking Platform
+> Autonomous Campus Assessment, Outcome-Based Education (OBE), and Machine Learning Intelligence Platform.
+> Developed by Lokesh (lokesh-gojo) at EASA College of Engineering and Technology, affiliated with Anna University.
+
+## Project Overview
+PREP-TRACK is an enterprise-grade academic assessment, intelligent proctoring, and campus placement readiness tracking platform engineered for higher education institutions. The platform implements state-of-the-art IEEE educational data mining (EDM) standards, including Computerized Adaptive Testing (CAT) via 2-Parameter Logistic Item Response Theory (2PL-IRT), Bloom's Revised Cognitive Taxonomy classification (L1-L6), and Explainable AI (XAI) placement attribution.
+
+## Core Capabilities & Features
+- **Computerized Adaptive Testing (CAT)**: Dynamic next-item selection utilizing 2PL Item Response Theory (IRT) and Maximum Fisher Information Criterion, ensuring rapid ability convergence with minimum measurement standard error.
+- **Bloom's Cognitive Taxonomy Engine**: Automated natural language classification of assessment items into 6 cognitive strata (Remembering, Understanding, Applying, Analyzing, Evaluating, Creating) mapped to NBA/NAAC Outcome-Based Education (OBE) Program Outcomes (PO1-PO12).
+- **Explainable AI (XAI) Employability Predictor**: SHAP-style feature attribution breakdown (Technical Coding, Quantitative Aptitude, Logical Reasoning, Verbal Articulation, Exam Pacing) with multi-tier company matchmaking (Tier-1 Product, Tier-2 Specialist, Tier-3 IT Services).
+- **Multimodal AI Proctoring**: Anomaly detection engine calculating a Cheating Susceptibility Index (CSI) using temporal pacing heuristics, reading speed anomalies, and browser focus tracking.
+- **Autonomous RAG Study Hub**: Retrieval-Augmented Generation agent utilizing hybrid BM25 and vector semantic embeddings over institutional syllabi and past university question papers.
+- **ATS Resume Scanner & AI Mock Interviewer**: Automated resume scoring and domain-specific interactive technical viva voice evaluation.
+
+## IEEE Reference Grounding
+- **Educational Data Mining (EDM)**: IEEE Transactions on Learning Technologies (TLT) standards on Item Response Theory and Bayesian Knowledge Tracing.
+- **Cognitive Classification**: IEEE ICALT / IEEE Access standards on Bloom's Taxonomy question categorization.
+- **Academic Integrity**: IEEE Transactions on Multimedia (TMM) multimodal online exam proctoring frameworks.
+- **Explainability**: IEEE Access standards for Explainable Artificial Intelligence in student employability predictions.
+
+## Institution & Author Metadata
+- **Institution**: EASA College of Engineering and Technology (Autonomous), NH-47, Palakkad Main Road, Navakkarai, Coimbatore, Tamil Nadu 641105, India.
+- **Affiliation**: Anna University, Chennai, Approved by AICTE, New Delhi.
+- **Lead Developer & System Architect**: Lokesh (lokesh-gojo), Department of Computer Science & Engineering.
+- **Contact & Repository**: https://github.com/lokesh-gojo/erp-project-

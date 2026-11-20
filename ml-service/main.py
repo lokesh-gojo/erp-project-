@@ -26,6 +26,7 @@ from models.rag_engine import RAGEngine
 from models.resume_scanner import ResumeScanner
 from models.mock_interviewer import MockInterviewer
 from models.rag_agent import RAGAgent
+from models.bloom_irt_engine import BloomIRTEngine
 
 app = FastAPI(
     title="PREP-TRACK ML & RAG Intelligence Service",
@@ -51,6 +52,7 @@ rag_engine = RAGEngine()
 resume_scanner = ResumeScanner()
 mock_interviewer = MockInterviewer()
 rag_agent = RAGAgent(rag_engine)
+bloom_irt_engine = BloomIRTEngine()
 
 
 # --- REQUEST & RESPONSE SCHEMAS ---
@@ -124,6 +126,27 @@ class RAGAgentInteractRequest(BaseModel):
     message: str
     persona: Optional[str] = "strategy"
     days_left: Optional[int] = 5
+
+class BloomClassifyRequest(BaseModel):
+    text: str
+
+class IRTAbilityRequest(BaseModel):
+    responses: List[Dict[str, Any]]
+    prior_mean: Optional[float] = 0.0
+    prior_sd: Optional[float] = 1.0
+
+class CATNextItemRequest(BaseModel):
+    current_theta: float
+    candidate_pool: List[Dict[str, Any]]
+    administered_ids: List[Any]
+
+class XAIExplainRequest(BaseModel):
+    quant: float
+    reasoning: float
+    verbal: float
+    tech: float
+    time_sec_per_q: Optional[float] = 50.0
+    test_count: Optional[int] = 1
 
 
 # --- API ENDPOINTS ---
@@ -323,6 +346,54 @@ def interact_with_rag_agent(req: RAGAgentInteractRequest):
             days_left=req.days_left or 5
         )
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- IEEE COGNITIVE & ADAPTIVE INTELLIGENCE ENDPOINTS ---
+
+@app.post("/cognitive/classify-bloom")
+def classify_bloom(req: BloomClassifyRequest):
+    try:
+        return { "success": True, "data": bloom_irt_engine.classify_bloom_level(req.text) }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/cognitive/estimate-ability-irt")
+def estimate_ability_irt(req: IRTAbilityRequest):
+    try:
+        result = bloom_irt_engine.estimate_ability_eap(
+            responses=req.responses,
+            prior_mean=req.prior_mean or 0.0,
+            prior_sd=req.prior_sd or 1.0
+        )
+        return { "success": True, "data": result }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/cognitive/cat-next-item")
+def get_cat_next_item(req: CATNextItemRequest):
+    try:
+        result = bloom_irt_engine.select_next_cat_question(
+            current_theta=req.current_theta,
+            candidate_pool=req.candidate_pool,
+            administered_ids=req.administered_ids
+        )
+        return { "success": True, "data": result }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/cognitive/xai-explain-placement")
+def xai_explain_placement(req: XAIExplainRequest):
+    try:
+        result = bloom_irt_engine.explain_placement_prediction(
+            quant=req.quant,
+            reasoning=req.reasoning,
+            verbal=req.verbal,
+            tech=req.tech,
+            time_sec_per_q=req.time_sec_per_q or 50.0,
+            test_count=req.test_count or 1
+        )
+        return { "success": True, "data": result }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
