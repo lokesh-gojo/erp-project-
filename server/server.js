@@ -1,9 +1,25 @@
 require('dotenv').config();
+
+// Enforce production security check: Fail fast if JWT_SECRET is absent
+if (!process.env.JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET environment variable is missing. Halting startup.');
+  process.exit(1);
+}
+
 const express = require('express');
 const db = require('./config/conn');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+/* =====================================================
+   SECURITY & SEO GUARDRAIL
+   Prevent Search Engines & AI Bots from Indexing API
+===================================================== */
+app.use('/api', (req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
 
 /* =====================================================
    CORS – SAFE & WORKING (NO HARD-CODED ORIGIN)
@@ -98,7 +114,12 @@ app.use('/api/rag', require('./routes/rag'));
    HEALTH CHECK
 ===================================================== */
 app.get('/', (req, res) => {
-  res.send('Server is running and connected to MySQL!');
+  res.json({
+    status: 'online',
+    service: 'PREP-TRACK Enterprise Backend API',
+    database: process.env.DATABASE_URL ? 'Supabase PostgreSQL' : 'Local Database',
+    timestamp: new Date().toISOString()
+  });
 });
 
 /* =====================================================

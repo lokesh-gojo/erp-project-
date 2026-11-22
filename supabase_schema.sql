@@ -110,6 +110,10 @@ CREATE TABLE IF NOT EXISTS questions (
     mark INT DEFAULT 1,
     image_data TEXT,
     image_url TEXT,
+    irt_a NUMERIC(4,2) DEFAULT 1.00,             -- 2PL-IRT Item Discrimination Parameter
+    irt_b NUMERIC(4,2) DEFAULT 0.00,             -- 2PL-IRT Item Difficulty Parameter
+    bloom_level VARCHAR(20) DEFAULT 'L2_Understand', -- Bloom's Revised Taxonomy (L1-L6)
+    po_mapping VARCHAR(20) DEFAULT 'PO1',        -- NBA Outcome-Based Education PO Mapping (PO1-PO12)
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -150,7 +154,11 @@ CREATE TABLE IF NOT EXISTS student_tests (
     start_time TIMESTAMPTZ DEFAULT NOW(),
     end_time TIMESTAMPTZ,
     score NUMERIC(5,2) DEFAULT 0.00,
-    status VARCHAR(50) DEFAULT 'started'
+    status VARCHAR(50) DEFAULT 'started',
+    theta_estimate NUMERIC(5,3) DEFAULT 0.000,   -- 2PL-IRT Estimated Latent Ability (θ)
+    csi_score NUMERIC(5,2) DEFAULT 100.00,       -- Cheating Susceptibility Index (CSI)
+    breach_count INT DEFAULT 0,                  -- Window blur / tab switch breach count
+    risk_level VARCHAR(20) DEFAULT 'Low'         -- Anomaly Risk Tier ('Low', 'Medium', 'High')
 );
 
 -- 13. STUDENT ANSWERS
@@ -160,6 +168,7 @@ CREATE TABLE IF NOT EXISTS student_answers (
     question_id INT NOT NULL REFERENCES questions(question_id) ON DELETE CASCADE,
     answer VARCHAR(10),
     is_correct SMALLINT DEFAULT 0,
+    time_taken_seconds NUMERIC(6,2) DEFAULT 0.00, -- Item response latency for CSI pacing analysis
     marked_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(student_test_id, question_id)
 );

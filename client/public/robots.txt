@@ -8,23 +8,38 @@ Allow: /static/
 Disallow: /api/
 Disallow: /admin/
 Disallow: /super-admin/
+Disallow: /student/
+Disallow: /faculty/
+Disallow: /hod/
+Disallow: /quiz/
+Disallow: /reports/
 
-# AI & LLM Search Crawlers (Generative Engine Optimization - GEO)
+# AI & LLM Search Crawlers (Generative Engine Optimization - GEO & AEO)
 User-agent: GPTBot
 Allow: /
 Allow: /llms.txt
+Disallow: /api/
+Disallow: /student/
+Disallow: /admin/
 
 User-agent: PerplexityBot
 Allow: /
 Allow: /llms.txt
+Disallow: /api/
+Disallow: /student/
+Disallow: /admin/
 
 User-agent: ClaudeBot
 Allow: /
 Allow: /llms.txt
+Disallow: /api/
+Disallow: /student/
+Disallow: /admin/
 
 User-agent: Google-Extended
 Allow: /
 Allow: /llms.txt
+Disallow: /api/
 
 # Sitemap Location
 Sitemap: https://prep-track.easa.edu.in/sitemap.xml
