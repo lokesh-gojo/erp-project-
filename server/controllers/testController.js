@@ -1,0 +1,924 @@
+const db = require('../config/conn');
+
+// Get all tests created by the authenticated user
+exports.getTestsByUser = (req, res) => {
+  const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  let sql = `
+    SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
+           t.num_questions, t.department_id, t.year, t.date, t.time_slot, t.duration_minutes, 
+           t.created_at, t.is_active, t.type AS test_type,
+           tp.title as topic_title,
+           st.title as sub_topic_title,
+           d.full_name as department_name,
+           d.short_name as dept_short_name
+    FROM tests t
+    LEFT JOIN topics tp ON t.topic_id = tp.topic_id
+    LEFT JOIN sub_topics st ON t.sub_topic_id = st.sub_topic_id
+    LEFT JOIN (
+      SELECT id, MAX(full_name) as full_name, MAX(short_name) as short_name 
+      FROM departments GROUP BY id
+    ) d ON t.department_id = d.id
+  `;
+
+  const queryParams = [];
+  if (roleId !== 4 && roleId !== 5) {
+    sql += ' WHERE t.added_by = ?';
+    queryParams.push(userId);
+  }
+
+  sql += ' ORDER BY t.created_at DESC';
+
+  db.query(sql, queryParams, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    const formattedResults = results.map(row => ({
+      test_id: row.test_id,
+      title: row.title,
+      description: row.description,
+      subject: row.subject,
+      added_by: row.added_by,
+      topic_id: row.topic_id,
+      topic_title: row.topic_title,
+      sub_topic_id: row.sub_topic_id,
+      sub_topic_title: row.sub_topic_title,
+      num_questions: row.num_questions,
+      department_id: row.department_id,
+      department_name: row.department_name,
+      dept_short_name: row.dept_short_name,
+      year: row.year,
+      date: row.date,
+      time_slot: row.time_slot,
+      duration_minutes: row.duration_minutes,
+      created_at: row.created_at,
+      is_active: row.is_active,
+      test_type: row.test_type
+    }));
+
+    res.json({ success: true, tests: formattedResults });
+  });
+};
+
+// Get tests for student based on their year and department
+exports.getTestsForStudent = (req, res) => {
+  const studentId = req.user?.id;
+
+  if (!studentId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  const sql = `
+    SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
+           t.num_questions, t.department_id, t.year, t.date, t.time_slot, t.duration_minutes, 
+           t.created_at, t.is_active, t.type AS test_type,
+           tp.title as topic_title,
+           st.title as sub_topic_title,
+           d.full_name as department_name,
+           d.short_name as dept_short_name,
+           u.name as faculty_name,
+           stest.status as student_status,
+           stest.score,
+           stest.start_time,
+           stest.end_time
+    FROM tests t
+    LEFT JOIN topics tp ON t.topic_id = tp.topic_id
+    LEFT JOIN sub_topics st ON t.sub_topic_id = st.sub_topic_id
+    LEFT JOIN (
+      SELECT id, MAX(full_name) as full_name, MAX(short_name) as short_name 
+      FROM departments GROUP BY id
+    ) d ON t.department_id = d.id
+    LEFT JOIN users u ON t.added_by = u.id
+    LEFT JOIN (
+      /* Get only the latest session for the specific student */
+      SELECT st1.test_id, st1.status, st1.score, st1.start_time, st1.end_time
+      FROM student_tests st1
+      INNER JOIN (
+        SELECT MAX(student_test_id) as latest_id
+        FROM student_tests
+        WHERE student_id = ?
+        GROUP BY test_id
+      ) st2 ON st1.student_test_id = st2.latest_id
+    ) stest ON t.test_id = stest.test_id
+    INNER JOIN users student ON student.id = ?
+    WHERE (t.department_id IS NULL OR t.department_id = student.department_id)
+      AND (t.year IS NULL OR t.year = student.year)
+      AND t.type != 'placement'
+    ORDER BY 
+      t.is_active DESC,
+      CASE 
+        WHEN t.date IS NOT NULL THEN t.date 
+        ELSE t.created_at 
+      END DESC
+  `;
+
+  db.query(sql, [studentId, studentId], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    const formattedResults = results.map(row => ({
+      test_id: row.test_id,
+      title: row.title,
+      description: row.description,
+      subject: row.subject,
+      added_by: row.added_by,
+      topic_id: row.topic_id,
+      topic_title: row.topic_title,
+      sub_topic_id: row.sub_topic_id,
+      sub_topic_title: row.sub_topic_title,
+      num_questions: row.num_questions,
+      department_id: row.department_id,
+      department_name: row.department_name,
+      dept_short_name: row.dept_short_name,
+      year: row.year,
+      date: row.date,
+      time_slot: row.time_slot,
+      duration_minutes: row.duration_minutes,
+      created_at: row.created_at,
+      is_active: row.is_active,
+      faculty_name: row.faculty_name,
+      status: row.student_status || (row.is_active === 1 ? 'available' : 'inactive'),
+      score: row.score !== null && row.score !== undefined 
+        ? (Number(row.score) > (row.num_questions || 1) 
+            ? Math.round((Number(row.score) / 100) * (row.num_questions || 1)) 
+            : Number(row.score))
+        : null,
+      start_time: row.start_time,
+      end_time: row.end_time
+    }));
+
+    res.json({ success: true, tests: formattedResults });
+  });
+};
+
+// Get placement tests for student
+exports.getPlacementTestsForStudent = (req, res) => {
+  const studentId = req.user?.id;
+
+  if (!studentId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  const sql = `
+    SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
+           t.num_questions, t.created_at, t.is_active, t.type AS test_type,
+           tp.title as topic_title,
+           st.title as sub_topic_title,
+           u.name as faculty_name,
+           stest.status as student_status,
+           stest.score,
+           stest.start_time,
+           stest.end_time
+    FROM tests t
+    LEFT JOIN topics tp ON t.topic_id = tp.topic_id
+    LEFT JOIN sub_topics st ON t.sub_topic_id = st.sub_topic_id
+    LEFT JOIN users u ON t.added_by = u.id
+    LEFT JOIN (
+      /* Get only the latest session for the specific student */
+      SELECT st1.test_id, st1.status, st1.score, st1.start_time, st1.end_time
+      FROM student_tests st1
+      INNER JOIN (
+        SELECT MAX(student_test_id) as latest_id
+        FROM student_tests
+        WHERE student_id = ?
+        GROUP BY test_id
+      ) st2 ON st1.student_test_id = st2.latest_id
+    ) stest ON t.test_id = stest.test_id
+    WHERE t.type = 'placement'
+    ORDER BY t.created_at DESC
+  `;
+
+  db.query(sql, [studentId], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    const formattedResults = results.map(row => ({
+      test_id: row.test_id,
+      title: row.title,
+      description: row.description,
+      subject: row.subject,
+      added_by: row.added_by,
+      topic_id: row.topic_id,
+      topic_title: row.topic_title,
+      sub_topic_id: row.sub_topic_id,
+      sub_topic_title: row.sub_topic_title,
+      num_questions: row.num_questions,
+      created_at: row.created_at,
+      is_active: row.is_active,
+      test_type: row.test_type,
+      faculty_name: row.faculty_name,
+      status: row.student_status || (row.is_active === 1 ? 'available' : 'inactive'),
+      score: row.score !== null && row.score !== undefined 
+        ? (Number(row.score) > (row.num_questions || 1) 
+            ? Math.round((Number(row.score) / 100) * (row.num_questions || 1)) 
+            : Number(row.score))
+        : null,
+      start_time: row.start_time,
+      end_time: row.end_time
+    }));
+
+    res.json({ success: true, tests: formattedResults });
+  });
+};
+
+// Get a specific test by ID (only if created by the authenticated user)
+exports.getTestById = (req, res) => {
+  const { test_id } = req.params;
+  const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  if (!test_id) {
+    return res.status(400).json({ error: 'Test ID required' });
+  }
+
+  let sql = `
+    SELECT t.test_id, t.title, t.description, t.subject, t.added_by, t.topic_id, t.sub_topic_id, 
+           t.num_questions, t.department_id, t.year, t.date, t.time_slot, t.duration_minutes, 
+           t.created_at, t.is_active,
+           tp.title as topic_title,
+           st.title as sub_topic_title
+    FROM tests t
+    LEFT JOIN topics tp ON t.topic_id = tp.topic_id
+    LEFT JOIN sub_topics st ON t.sub_topic_id = st.sub_topic_id
+    WHERE t.test_id = ?
+  `;
+
+  const queryParams = [test_id];
+  if (roleId !== 4 && roleId !== 5) {
+    sql += ' AND t.added_by = ?';
+    queryParams.push(userId);
+  }
+
+  db.query(sql, queryParams, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Test not found or access denied' });
+    }
+
+    const test = results[0];
+    const formattedResult = {
+      test_id: test.test_id,
+      title: test.title,
+      description: test.description,
+      subject: test.subject,
+      added_by: test.added_by,
+      topic_id: test.topic_id,
+      topic_title: test.topic_title,
+      sub_topic_id: test.sub_topic_id,
+      sub_topic_title: test.sub_topic_title,
+      num_questions: test.num_questions,
+      department_id: test.department_id,
+      year: test.year,
+      date: test.date,
+      time_slot: test.time_slot,
+      duration_minutes: test.duration_minutes,
+      created_at: test.created_at,
+      is_active: test.is_active
+    };
+
+    res.json({ success: true, test: formattedResult });
+  });
+};
+
+// Create a new test
+exports.createTest = async (req, res) => {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  const {
+    title, description, subject, topic_id, sub_topic_id, num_questions,
+    department_id, year, date, time_slot, duration_minutes, is_active, total_marks,
+    questions, faculty_id, type
+  } = req.body;
+
+  if (!title || !subject || !num_questions) {
+    return res.status(400).json({
+      error: 'Required fields: title, subject, num_questions'
+    });
+  }
+  if (type !== 'placement' && !duration_minutes) {
+    return res.status(400).json({
+      error: 'Required fields: duration_minutes for regular tests'
+    });
+  }
+
+  const marks = total_marks || num_questions; // Default to 1 mark per question if not specified
+  const targetAddedBy = ((Number(req.user?.role_id) === 4 || Number(req.user?.role_id) === 5) && faculty_id) ? faculty_id : userId;
+
+  let resolvedSubTopicId = sub_topic_id || null;
+  if (type === 'placement' && topic_id && !resolvedSubTopicId) {
+    try {
+      const [subtopics] = await db.promise().query('SELECT sub_topic_id FROM sub_topics WHERE topic_id = ? LIMIT 1', [topic_id]);
+      if (subtopics.length > 0) {
+        resolvedSubTopicId = subtopics[0].sub_topic_id;
+      } else {
+        // Create default subtopic
+        const [insertResult] = await db.promise().query(
+          'INSERT INTO sub_topics (topic_id, title, description, added_by) VALUES (?, ?, ?, ?)',
+          [topic_id, 'General ' + title, 'Default subtopic for ' + title, targetAddedBy]
+        );
+        resolvedSubTopicId = insertResult.insertId;
+      }
+    } catch (err) {
+      console.error('Error resolving subtopic:', err);
+    }
+  }
+
+  const sql = `
+    INSERT INTO tests (title, description, subject, added_by, topic_id, sub_topic_id, 
+                      num_questions, department_id, year, date, time_slot, duration_minutes, is_active, total_marks, type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const values = [
+    title, description, subject, targetAddedBy, topic_id || null, resolvedSubTopicId,
+    num_questions, department_id || null, year || null, date || null, time_slot || null, duration_minutes || null,
+    is_active !== undefined ? is_active : 1, marks, type || 'regular'
+  ];
+
+  try {
+    const [result] = await db.promise().query(sql, values);
+    const testId = result.insertId;
+    
+    // Note: for placement tests, we strip out any invalid temporary question IDs
+    // since the client will upload the questions separately using /upload-questions.
+    const questionIds = type === 'placement' 
+      ? [] 
+      : (questions || []).map(q => typeof q === 'object' ? (q.question_id || q.id) : q).filter(Boolean);
+
+    if (questionIds.length > 0) {
+      const insertQuery = 'INSERT INTO test_questions (test_id, question_id) VALUES ?';
+      const testQuestionRows = questionIds.map(qId => [testId, qId]);
+      await db.promise().query(insertQuery, [testQuestionRows]);
+      
+      res.json({
+        success: true,
+        message: 'Test created and questions assigned successfully',
+        test_id: testId
+      });
+    } else {
+      res.json({
+        success: true,
+        message: 'Test created successfully',
+        test_id: testId
+      });
+    }
+  } catch (err) {
+    console.error('Test creation error:', err);
+    res.status(500).json({ error: 'Database error', details: err.message || err });
+  }
+};
+
+// Update an existing test
+exports.updateTest = (req, res) => {
+  const { test_id } = req.params;
+  const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  if (!test_id) {
+    return res.status(400).json({ error: 'Test ID required' });
+  }
+
+  const {
+    title, description, subject, topic_id, sub_topic_id, num_questions,
+    department_id, year, date, time_slot, duration_minutes, is_active, total_marks
+  } = req.body;
+
+  // First, verify the test exists and belongs to the user
+  let checkSql = 'SELECT test_id FROM tests WHERE test_id = ?';
+  const checkParams = [test_id];
+  if (roleId !== 4 && roleId !== 5) {
+    checkSql += ' AND added_by = ?';
+    checkParams.push(userId);
+  }
+
+  db.query(checkSql, checkParams, (err, checkResults) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    if (checkResults.length === 0) {
+      return res.status(404).json({ error: 'Test not found or access denied' });
+    }
+
+    // Build dynamic update query
+    const updateFields = [];
+    const updateValues = [];
+
+    if (title !== undefined) {
+      updateFields.push('title = ?');
+      updateValues.push(title);
+    }
+    if (description !== undefined) {
+      updateFields.push('description = ?');
+      updateValues.push(description);
+    }
+    if (subject !== undefined) {
+      updateFields.push('subject = ?');
+      updateValues.push(subject);
+    }
+    if (topic_id !== undefined) {
+      updateFields.push('topic_id = ?');
+      updateValues.push(topic_id);
+    }
+    if (sub_topic_id !== undefined) {
+      updateFields.push('sub_topic_id = ?');
+      updateValues.push(sub_topic_id);
+    }
+    if (num_questions !== undefined) {
+      updateFields.push('num_questions = ?');
+      updateValues.push(num_questions);
+    }
+    if (total_marks !== undefined) {
+      updateFields.push('total_marks = ?');
+      updateValues.push(total_marks);
+    } else if (num_questions !== undefined) {
+      // If num_questions changed but total_marks didn't, update total_marks equal to num_questions
+      // This assumption keeps logic consistent with createTest where default is 1 mark/question
+      // However, usually updates are explicit. Let's strictly only update if passed, OR valid logic:
+      // If user updates ques count, logical to update marks? Maybe.
+      // For safety, only update if passed. But for 'create', we force it.
+      // Let's add it if explicitly passed.
+    }
+    if (department_id !== undefined) {
+      updateFields.push('department_id = ?');
+      updateValues.push(department_id);
+    }
+    if (year !== undefined) {
+      updateFields.push('year = ?');
+      updateValues.push(year);
+    }
+    if (date !== undefined) {
+      updateFields.push('date = ?');
+      updateValues.push(date);
+    }
+    if (time_slot !== undefined) {
+      updateFields.push('time_slot = ?');
+      updateValues.push(time_slot);
+    }
+    if (duration_minutes !== undefined) {
+      updateFields.push('duration_minutes = ?');
+      updateValues.push(duration_minutes);
+    }
+    if (is_active !== undefined) {
+      updateFields.push('is_active = ?');
+      updateValues.push(is_active);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updateValues.push(test_id);
+
+    let updateSql = `
+      UPDATE tests 
+      SET ${updateFields.join(', ')} 
+      WHERE test_id = ?
+    `;
+
+    if (roleId !== 4 && roleId !== 5) {
+      updateSql += ' AND added_by = ?';
+      updateValues.push(userId);
+    }
+
+    db.query(updateSql, updateValues, (err, result) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error', details: err });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'Test not found or no changes made' });
+      }
+
+      res.json({
+        success: true,
+        message: 'Test updated successfully'
+      });
+    });
+  });
+};
+
+// Delete a test
+exports.deleteTest = (req, res) => {
+  const { test_id } = req.params;
+  const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  if (!test_id) {
+    return res.status(400).json({ error: 'Test ID required' });
+  }
+
+  let sql = 'DELETE FROM tests WHERE test_id = ?';
+  const queryParams = [test_id];
+  if (roleId !== 4 && roleId !== 5) {
+    sql += ' AND added_by = ?';
+    queryParams.push(userId);
+  }
+
+  db.query(sql, queryParams, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Test not found or access denied' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Test deleted successfully'
+    });
+  });
+};
+
+// Toggle test active status
+exports.toggleTestStatus = (req, res) => {
+  const { test_id } = req.params;
+  const userId = req.user?.id;
+  const roleId = Number(req.user?.role_id);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  if (!test_id) {
+    return res.status(400).json({ error: 'Test ID required' });
+  }
+
+  let sql = `
+    UPDATE tests 
+    SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END 
+    WHERE test_id = ?
+  `;
+  const queryParams = [test_id];
+  if (roleId !== 4 && roleId !== 5) {
+    sql += ' AND added_by = ?';
+    queryParams.push(userId);
+  }
+
+  db.query(sql, queryParams, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Test not found or access denied' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Test status updated successfully'
+    });
+  });
+};
+
+// Assign questions to test
+exports.uploadQuestionsToTest = async (req, res) => {
+  const { test_id } = req.params;
+  const { questions } = req.body;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!questions || !Array.isArray(questions) || questions.length === 0) {
+    return res.status(400).json({ error: 'Questions array is required' });
+  }
+
+  try {
+    const [testRows] = await db.promise().query('SELECT sub_topic_id FROM tests WHERE test_id = ?', [test_id]);
+    const sub_topic_id = testRows[0]?.sub_topic_id || null;
+
+    const values = questions.map(q => [
+      sub_topic_id,
+      userId,
+      Number(req.user?.role_id) === 1 ? 1 : 0,
+      q.text || q.question_text || '',
+      q.a || q.option_a || '',
+      q.b || q.option_b || '',
+      q.c || q.option_c || '',
+      q.d || q.option_d || '',
+      (() => {
+        let opt = String(q.correct || q.correct_option || 'A').toUpperCase().trim();
+        opt = opt.replace('OPTION_', '').replace('OPTION', '').trim();
+        opt = opt.charAt(0);
+        return ['A','B','C','D'].includes(opt) ? opt : 'A';
+      })(),
+      q.mark || 1
+    ]);
+
+    const insertQQuery = `
+      INSERT INTO questions 
+      (sub_topic_id, created_by, by_admin, question_text, option_a, option_b, option_c, option_d, correct_option, mark)
+      VALUES ?
+    `;
+    const [result] = await db.promise().query(insertQQuery, [values]);
+    const firstInsertId = result.insertId;
+    const insertedCount = result.affectedRows;
+
+    const testQuestionRows = (Array.isArray(result) && result.length > 0 && result[0].question_id)
+      ? result.map(r => [test_id, r.question_id])
+      : [];
+
+    if (testQuestionRows.length === 0) {
+      for (let i = 0; i < insertedCount; i++) {
+        testQuestionRows.push([test_id, firstInsertId + i]);
+      }
+    }
+
+    const insertTQQuery = 'INSERT INTO test_questions (test_id, question_id) VALUES ?';
+    await db.promise().query(insertTQQuery, [testQuestionRows]);
+
+    await db.promise().query(
+      'UPDATE tests SET num_questions = (SELECT COUNT(*) FROM test_questions WHERE test_id = ?) WHERE test_id = ?',
+      [test_id, test_id]
+    );
+
+    res.json({ success: true, message: `${insertedCount} questions uploaded successfully` });
+  } catch (err) {
+    console.error('Error uploading questions:', err);
+    res.status(500).json({ error: 'Database error', details: err.message || err });
+  }
+};
+
+exports.assignQuestionsToTest = async (req, res) => {
+  const { test_id } = req.params;
+  const { sub_topic_id, num_questions } = req.body;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  try {
+    if (!test_id || !sub_topic_id || !num_questions) {
+      return res.status(400).json({ error: 'Missing required fields: test_id, sub_topic_id, num_questions' });
+    }
+
+    // Verify test belongs to user
+    const checkTestSql = 'SELECT test_id FROM tests WHERE test_id = ? AND added_by = ?';
+    const testResult = await new Promise((resolve, reject) => {
+      db.query(checkTestSql, [test_id, userId], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    if (testResult.length === 0) {
+      return res.status(404).json({ error: 'Test not found or access denied' });
+    }
+
+    // Get all available questions for the subtopic
+    const getQuestionsQuery = `
+      SELECT question_id FROM questions 
+      WHERE sub_topic_id = ? 
+      ORDER BY RAND() 
+      LIMIT ?
+    `;
+
+    const questions = await new Promise((resolve, reject) => {
+      db.query(getQuestionsQuery, [sub_topic_id, num_questions], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    if (questions.length < num_questions) {
+      return res.status(400).json({
+        error: `Only ${questions.length} questions available, but ${num_questions} requested`
+      });
+    }
+
+    // Delete existing test questions if any
+    const deleteQuery = 'DELETE FROM test_questions WHERE test_id = ?';
+    await new Promise((resolve, reject) => {
+      db.query(deleteQuery, [test_id], (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+
+    // Insert new test questions
+    const insertPromises = questions.map(question => {
+      return new Promise((resolve, reject) => {
+        const insertQuery = 'INSERT INTO test_questions (test_id, question_id) VALUES (?, ?)';
+        db.query(insertQuery, [test_id, question.question_id], (insertErr, result) => {
+          if (insertErr) reject(insertErr);
+          else resolve(result);
+        });
+      });
+    });
+
+    await Promise.all(insertPromises);
+
+    res.json({
+      success: true,
+      message: `Successfully assigned ${questions.length} questions to test`,
+      assigned_count: questions.length
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+};
+
+// Get test questions
+exports.getTestQuestions = (req, res) => {
+  const { test_id } = req.params;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  // First verify test belongs to user or is superadmin
+  let checkTestSql = 'SELECT test_id FROM tests WHERE test_id = ?';
+  const queryParams = [test_id];
+  const roleId = Number(req.user?.role_id);
+  
+  if (roleId !== 4 && roleId !== 5) {
+    checkTestSql += ' AND added_by = ?';
+    queryParams.push(userId);
+  }
+
+  db.query(checkTestSql, queryParams, (checkErr, checkResults) => {
+    if (checkErr) {
+      return res.status(500).json({ error: 'Database error', details: checkErr });
+    }
+
+    if (checkResults.length === 0) {
+      return res.status(404).json({ error: 'Test not found or access denied' });
+    }
+
+    const query = `
+      SELECT tq.test_question_id, tq.test_id, tq.question_id, tq.created_at,
+             q.question_text as text, q.option_a as a, q.option_b as b, 
+             q.option_c as c, q.option_d as d, q.correct_option as correct, 
+             q.mark as marks,
+             st.title as sub_topic_title,
+             t.title as topic_title
+      FROM test_questions tq
+      JOIN questions q ON tq.question_id = q.question_id
+      LEFT JOIN sub_topics st ON q.sub_topic_id = st.sub_topic_id
+      LEFT JOIN topics t ON st.topic_id = t.topic_id
+      WHERE tq.test_id = ?
+      ORDER BY tq.created_at ASC
+    `;
+
+    db.query(query, [test_id], (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error', details: err });
+      }
+
+      const formattedResults = results.map(row => ({
+        test_question_id: row.test_question_id,
+        test_id: row.test_id,
+        question_id: row.question_id,
+        text: row.text,
+        a: row.a,
+        b: row.b,
+        c: row.c,
+        d: row.d,
+        correct: row.correct,
+        marks: row.marks || 1,
+        sub_topic_title: row.sub_topic_title,
+        topic_title: row.topic_title,
+        created_at: row.created_at
+      }));
+
+      res.json({
+        success: true,
+        questions: formattedResults,
+        total_questions: formattedResults.length
+      });
+    });
+  });
+};
+
+// Get test questions count
+exports.getTestQuestionsCount = (req, res) => {
+  const { test_id } = req.params;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  // First verify test belongs to user or is superadmin
+  let checkTestSql = 'SELECT test_id FROM tests WHERE test_id = ?';
+  const queryParams = [test_id];
+  const roleId = Number(req.user?.role_id);
+  
+  if (roleId !== 4 && roleId !== 5) {
+    checkTestSql += ' AND added_by = ?';
+    queryParams.push(userId);
+  }
+
+  db.query(checkTestSql, queryParams, (checkErr, checkResults) => {
+    if (checkErr) {
+      return res.status(500).json({ error: 'Database error', details: checkErr });
+    }
+
+    if (checkResults.length === 0) {
+      return res.status(404).json({ error: 'Test not found or access denied' });
+    }
+
+    const query = 'SELECT COUNT(*) as question_count FROM test_questions WHERE test_id = ?';
+
+    db.query(query, [test_id], (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error', details: err });
+      }
+
+      res.json({
+        success: true,
+        question_count: results[0].question_count
+      });
+    });
+  });
+};
+
+// Get preview questions for test creation
+exports.getPreviewQuestions = (req, res) => {
+  const { sub_topic_id } = req.params;
+  const { num_questions } = req.query;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: No user id in token' });
+  }
+
+  if (!sub_topic_id) {
+    return res.status(400).json({ error: 'Sub topic ID is required' });
+  }
+
+  const limit = num_questions ? parseInt(num_questions) : 10;
+
+  const query = `
+    SELECT q.question_id, q.question_text as text, q.option_a as a, q.option_b as b, 
+           q.option_c as c, q.option_d as d, q.correct_option as correct, 
+           q.mark as marks,
+           st.title as sub_topic_title,
+           t.title as topic_title
+    FROM questions q
+    LEFT JOIN sub_topics st ON q.sub_topic_id = st.sub_topic_id
+    LEFT JOIN topics t ON st.topic_id = t.topic_id
+    WHERE q.sub_topic_id = ?
+    ORDER BY RAND()
+    LIMIT ?
+  `;
+
+  db.query(query, [sub_topic_id, limit], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error', details: err });
+    }
+
+    const formattedResults = results.map(row => ({
+      question_id: row.question_id,
+      text: row.text,
+      a: row.a,
+      b: row.b,
+      c: row.c,
+      d: row.d,
+      correct: row.correct,
+      marks: row.marks || 1,
+      sub_topic_title: row.sub_topic_title,
+      topic_title: row.topic_title
+    }));
+
+    res.json({
+      success: true,
+      questions: formattedResults,
+      total_questions: formattedResults.length
+    });
+  });
+};
+
+

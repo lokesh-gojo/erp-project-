@@ -1,0 +1,30 @@
+# PREP-TRACK Intelligent Examination & Placement Platform
+# Robots.txt for Search Engines and AI Crawlers (Googlebot, Bingbot, PerplexityBot, GPTBot, ClaudeBot)
+
+User-agent: *
+Allow: /
+Allow: /leaderboard
+Allow: /static/
+Disallow: /api/
+Disallow: /admin/
+Disallow: /super-admin/
+
+# AI & LLM Search Crawlers (Generative Engine Optimization - GEO)
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+
+# Sitemap Location
+Sitemap: https://prep-track.easa.edu.in/sitemap.xml

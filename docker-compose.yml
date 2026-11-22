@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: preptrack-ml-service
+    restart: always
+    ports:
+      - "5002:5002"
+    environment:
+      - ML_PORT=5002
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: preptrack-backend
+    restart: always
+    depends_on:
+      - ml-service
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - JWT_SECRET=${JWT_SECRET:-preptrack_jwt_super_secret_key_2026}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres.qtaxrecmhqahrszdagjh:value%401234567789@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres}
+      - ML_SERVICE_URL=http://ml-service:5002
+      - SUPABASE_URL=${SUPABASE_URL:-https://qtaxrecmhqahrszdagjh.supabase.co}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-sb_publishable_nTtJQavSvIreKPFLDjIJRg_ycGMC9Hr}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-sb_secret_mhzZeyGUt-wfCzfpjgT3eQ_unevdamA}
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: preptrack-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
